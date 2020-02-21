@@ -1,15 +1,18 @@
 import importlib
 from tkinter import *
+from tkinter.filedialog import askopenfilename
 
 class PDA(object):
     # Constants
-    PDA_TITLE="Auditory Analyzer"           # window title
-    WINDOW_GEOMETRY='640x480'               # default size
-    WINDOW_PERCENT_SCREEN=0.5
+    PDA_TITLE="Pitch Determination Algorithm"   # window title
+    WINDOW_GEOMETRY='640x480'                   # default size
+    WINDOW_PERCENT_SCREEN=0.5                   # use half screen width and half height
     PROCESSING_MODES={"GPU":1,"CPU":2}
+    INPUT_SOURCES={"MIC":1,"FILE":2}
 
     # Member Variables
     window = Tk()
+    cmdFrm=Frame(window)
 
     # Constructor
     def __init__(self):
@@ -23,7 +26,7 @@ class PDA(object):
     # Contructs User GUI
     def display(self):
         self.configureWindow()
-        self.gpuSwitch()
+        self.configureCmdFrm()
         self.window.mainloop()
 
     # Sets window size
@@ -52,11 +55,34 @@ class PDA(object):
             pass                        # can't use cusignal module
         else:
            self.procMode = IntVar(self.window,1) # default to GPU mode
-           for (text, mode) in self.PROCESSING_MODES:
-                r = Radiobutton(self.window, text=text, 
+           for (text, mode) in self.PROCESSING_MODES.items():
+                r = Radiobutton(self.cmdFrm, text=text, 
                                     variable=self.procMode, value=mode, 
-                                    indicator = 0, background = "light blue"
-                                    ).grid(row=0, column=mode)
+                                    indicator=0, background="light blue")
+                r.pack(side=LEFT)
+
+    def srcSwitch(self):
+        self.srcMode = IntVar(self.window,1) # default to MIC mode
+        for (text, mode) in self.INPUT_SOURCES.items():
+            r = Radiobutton(self.cmdFrm, text=text, 
+                                variable=self.srcMode, value=mode, 
+                                indicator=0, background="pink")
+            r.pack(side=LEFT)
+
+    def loadFile(self):
+        self.filename = askopenfilename(title = "Select file",
+                            filetypes = (("Wave files","*.wav"),
+                                         ("MP3 files","*.mp3")))
+
+    def fileBrowser(self):
+        b = Button(self.cmdFrm, text="Browse", command=self.loadFile)
+        b.pack(side=LEFT)
+
+    def configureCmdFrm(self):
+        self.gpuSwitch()
+        self.srcSwitch()
+        self.fileBrowser()
+        self.cmdFrm.pack(side=TOP, anchor=NW, expand=YES)
 
     def importCusignal(self):
         self._cusignal = importlib.util.find_spec('cusignal')
