@@ -3,12 +3,21 @@ import importlib
 from tkinter import *
 from tkinter import messagebox
 from tkinter.filedialog import askopenfilename
+import amfm_decompy.pYAAPT as pYAAPT
+import amfm_decompy.basic_tools as basic
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from matplotlib.backend_bases import key_press_handler
+from matplotlib.figure import Figure
+import numpy as np
+import wave
+import sys
+import os
 
 class PDA(object):
     # Constants
     PDA_TITLE="Pitch Determination Algorithm"   # window title
     WINDOW_GEOMETRY='640x480'                   # default size
-    WINDOW_PERCENT_SCREEN=0.5                   # use half screen width and half height
+    WINDOW_PERCENT_SCREEN=0.75                  # use 75% screen width and height
     PROCESSING_MODES={"GPU":1,"CPU":2}
     INPUT_SOURCES={"MIC":1,"FILE":2}
     DEFAULT_SOURCE_FILE="Source Sound File"
@@ -25,16 +34,7 @@ class PDA(object):
     def run(self):
         print("Done")
 
-    # Contructs User GUI
-    def display(self):
-        w=Tk()
-        self.configureWindow(w)
-        self.configureCmdFrm(w)
-        self.configurePlotFrm(w)
-        self.configurePlotFrm(w)
-        self.configureTimerFrm(w)
-        w.mainloop()
-
+    # Utilities
     # Sets window size
     def windowSize(self,containerWindow):
         # get screen size
@@ -48,11 +48,31 @@ class PDA(object):
         # format to string that for geometry call
         return "{}x{}".format(windowWidth,windowHeight)
 
-    # http://www.java2s.com/Code/Python/GUI-Tk/Layoutbuttoninarowwithdifferentpadx.htm
+    # Contructs User GUI
+    def display(self):
+        w=Tk()
+        self.window=w
+        self.configureWindow(w)
+        self.configureCmdFrm(w)
+        self.configurePlotFrm(w)
+        self.configureTimerFrm(w)
+        w.mainloop()
+
+    # Window
     def configureWindow(self, containerWindow):
         containerWindow.geometry(self.windowSize(containerWindow))
         containerWindow.resizable(width=True, height=True)
         containerWindow.title(self.PDA_TITLE)
+
+    # Window Frames
+
+    ## Control Frame
+    def configureCmdFrm(self,containerWindow):
+        f=Frame(containerWindow)
+        self.gpuSwitch(f)
+        self.srcSwitch(f)
+        self.fileBrowser(f)
+        f.pack(anchor=N, fill=X, expand=YES)
 
     def gpuSwitch(self, containerFrame):
         if self._cusignal is None:
@@ -75,24 +95,100 @@ class PDA(object):
             r.pack(side=LEFT)
         f.pack(side=LEFT, padx=10)
 
+    ## Plot Frame
+    def configurePlotFrm(self, containerWindow):
+        f=Frame(self.window)
+        f.pack(anchor=CENTER, fill=BOTH, expand=YES)
+        self.plotFrame=f
+
+    ## Processing Timer Frame
+    def configureTimerFrm(self, containerWindow):
+        f=Frame(containerWindow)
+        lUnit=Label(f,text='seconds')
+        lUnit.pack(side=RIGHT)
+        self.processingTime=StringVar()
+        self.processingTime.set('TBD')
+        lValue=Label(f,textvariable=self.processingTime)
+        lValue.pack(side=RIGHT)
+        f.pack(anchor=SE, fill=X, expand=YES)
+
+    # Process Signals
+    def processSignals(self):
+        if self.srcMode.get() == self.INPUT_SOURCES.get('MIC'):
+            self.procesSignalsFromMic()
+        else:
+            self.procesSignalsFromFile()
+
+    def procesSignalsFromMic(self):
+        pass
+
+    def procesSignalsFromFile(self):
+        startTime=process_time()
+
+        soundFile=self.srcFile.get()
+        if not os.path.isfile(soundFile):
+           return
+
+        spf = wave.open(soundFile, "r")
+        signal = spf.readframes(-1)
+        signal = np.frombuffer(signal, dtype='int16')
+        spf.close()
+        if spf.getnchannels() == 2:
+            return
+
+        plt=Figure()
+        plt.suptitle("Signal", fontsize=14)
+        magPlt=plt.add_subplot(311)
+        magPlt.set_xlabel("Samples", fontsize=12)
+        magPlt.set_ylabel("Magnitude", fontsize=12)
+        magPlt.plot(signal)
+        magPlt.autoscale(enable=True, axis='x', tight=True)
+
+        freqPlt=plt.add_subplot(312)
+        freqPlt.set_xlabel('Time', fontsize=12)    
+        freqPlt.set_ylabel('Frequency [Hz]', fontsize=12) 
+        axes = plt.gca()
+        Pxx, freqs, bins, im = freqPlt.specgram(signal, NFFT=1024, Fs=16000, noverlap=900, cmap='gray_r')
+        freqPlt.plot(signal)
+        freqPlt.autoscale(enable=True, axis='x', tight=True)
+
+        pitchPlt=plt.add_subplot(313)
+        pitchPlt.set_xlabel('Samples', fontsize=12)
+        pitchPlt.set_ylabel('Pitch (Hz)', fontsize=12)
+        basicSignal = basic.SignalObj(soundFile)
+        pitch  = pYAAPT.yaapt(basicSignal, frame_length=40, tda_frame_length=40, f0_min=75, f0_max=600)
+        pitchPlt.plot(pitch.values, label='pich interpolation', color='green')
+        pitch.set_values(pitch.samp_values, len(pitch.values), interp_tech='step')
+        pitchPlt.plot(pitch.values, label='step interpolation', color='blue')
+        pitch.set_values(pitch.samp_values, len(pitch.values), interp_tech='spline')
+        pitchPlt.plot(pitch.values, label='spline interpolation', color='red')
+        pitchPlt.legend(loc='upper right')
+        pitchPlt.grid
+        pitchPlt.axes = plt.gca()
+        pitchPlt.axes.set_ylim([0,1000])
+        pitchPlt.autoscale(enable=True, axis='x', tight=True)
+
+        canvas = FigureCanvasTkAgg(plt, master=self.plotFrame)
+        canvas.draw()
+        canvas.get_tk_widget().pack(side=TOP, fill=BOTH, expand=1)
+        elapsedTime=process_time()-startTime
+        self.processingTime.set(elapsedTime)
+
+    # Callbacks
     def loadFile(self):
         fileName=askopenfilename(title = "Select sound file",
             filetypes = (("Wave files","*.wav"), 
                          ("MP3 files","*.mp3")))
         self.srcFile.set(fileName)
-        self.displaySignals()
-
-    def displaySignals(self):
-        startTime=process_time()
-        messagebox.showinfo("Sound File",self.srcFile.get().strip())
-        elapsedTime=process_time()-startTime
-        self.processingTime.set(elapsedTime)
+        self.srcMode.set(self.INPUT_SOURCES.get('FILE'))
+        self.processSignals()
 
     def OnFileEntryClick(self, event):
         value=self.srcFile.get().strip()
         changed = True if self.prevSrcFile != value else False
         if changed:
-            self.displaySignals()
+            self.srcMode.set(self.INPUT_SOURCES.get('FILE'))
+            self.processSignals()
         self.prevSrcFile=value
 
     def fileBrowser(self, containerFrame):
@@ -105,26 +201,6 @@ class PDA(object):
         b=Button(f, text="Browse", command=lambda:self.loadFile())
         b.pack(side=LEFT)
         f.pack(side=LEFT, padx=10, fill=X, expand=YES)
-
-    def configureCmdFrm(self,containerWindow):
-        f=Frame(containerWindow)
-        self.gpuSwitch(f)
-        self.srcSwitch(f)
-        self.fileBrowser(f)
-        f.pack(anchor=N, fill=X, expand=YES)
-
-    def configurePlotFrm(self, containerWindow):
-        pass
-
-    def configureTimerFrm(self, containerWindow):
-        f=Frame(containerWindow)
-        lUnit=Label(f,text='nanoseconds')
-        lUnit.pack(side=RIGHT)
-        self.processingTime=StringVar()
-        self.processingTime.set('TBD')
-        lValue=Label(f,textvariable=self.processingTime)
-        lValue.pack(side=RIGHT)
-        f.pack(anchor=S, fill=X, expand=YES)
 
     def importCusignal(self):
         self._cusignal = importlib.util.find_spec('cusignal')
