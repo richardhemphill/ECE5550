@@ -148,8 +148,7 @@ class PDA(object):
         freqPlt.set_xlabel('Time', fontsize=12)    
         freqPlt.set_ylabel('Frequency [Hz]', fontsize=12) 
         axes = plt.gca()
-        Pxx, freqs, bins, im = freqPlt.specgram(signal, NFFT=1024, Fs=16000, noverlap=900, cmap='gray_r')
-        freqPlt.plot(signal)
+        freqPlt.specgram(signal, NFFT=1024, Fs=16000, noverlap=900, cmap='gray_r')
         freqPlt.autoscale(enable=True, axis='x', tight=True)
 
         pitchPlt=plt.add_subplot(313)
