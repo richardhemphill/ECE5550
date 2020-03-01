@@ -1,3 +1,4 @@
+import time
 from time import process_time
 import importlib
 from tkinter import *
@@ -8,10 +9,12 @@ import amfm_decompy.basic_tools as basic
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.backend_bases import key_press_handler
 from matplotlib.figure import Figure
+import matplotlib.pyplot as pplt 
 import numpy as np
 import wave
 import sys
 import os
+import pyaudio
 
 class PDA(object):
     # Constants
@@ -21,9 +24,10 @@ class PDA(object):
     PROCESSING_MODES={"GPU":1,"CPU":2}
     INPUT_SOURCES={"MIC":1,"FILE":2}
     DEFAULT_SOURCE_FILE="Source Sound File"
+    RATE = 44100
+    CHUNK = int(RATE/20) # RATE / number of updates per second
 
     # Member Variables
-
 
     # Constructor
     def __init__(self):
@@ -91,7 +95,8 @@ class PDA(object):
         self.srcMode = IntVar(containerFrame,1) # default to MIC mode
         for (text, mode) in self.INPUT_SOURCES.items():
             r = Radiobutton(f, text=text, variable=self.srcMode, 
-                value=mode, indicator=0, background="pink")
+                value=mode, indicator=0, background="pink",
+                command=lambda: self.processSignals())
             r.pack(side=LEFT)
         f.pack(side=LEFT, padx=10)
 
@@ -119,8 +124,61 @@ class PDA(object):
         else:
             self.procesSignalsFromFile()
 
+    def magPlot(self,data,plt):
+        plt.clear()
+        plt.plot(data)
+        plt.axis([0,len(data),-2**16/2,2**16/2])
+
+    def freqPlot(self,data,plt):
+        plt.specgram(data, NFFT=1024, Fs=44100, noverlap=900, cmap='gray_r')
+        plt.autoscale(enable=True, axis='x', tight=True)
+
+    def pitchPlot(self,data,plt,rate):
+        plt.clear()
+        basicSignal = basic.SignalObj(data,rate)
+        pitch  = pYAAPT.yaapt(basicSignal)
+        plt.plot(pitch.values, label='pich interpolation', color='green')
+        pitch.set_values(pitch.samp_values, len(pitch.values), interp_tech='step')
+        plt.plot(pitch.values, label='step interpolation', color='blue')
+        pitch.set_values(pitch.samp_values, len(pitch.values), interp_tech='spline')
+        plt.plot(pitch.values, label='spline interpolation', color='red')
+        plt.legend(loc='upper right')
+        plt.grid
+        plt.axes.set_ylim([0,1000])
+        plt.autoscale(enable=True, axis='x', tight=True)
+
     def procesSignalsFromMic(self):
-        pass
+        RATE = 44100
+        CHUNK = int(RATE/2) # RATE / number of updates per second
+        plt=Figure()
+        plt.suptitle("Signal", fontsize=14)
+        mPlt=plt.add_subplot(311)
+        mPlt.set_xlabel("Samples", fontsize=12)
+        mPlt.set_ylabel("Magnitude", fontsize=12)
+        fPlt=plt.add_subplot(312)
+        fPlt.set_xlabel('Time', fontsize=12)    
+        fPlt.set_ylabel('Frequency [Hz]', fontsize=12) 
+        pPlt=plt.add_subplot(313)
+        pPlt.set_xlabel('Samples', fontsize=12)
+        pPlt.set_ylabel('Pitch (Hz)', fontsize=12)
+        pPlt.axes = plt.gca()
+        canvas = FigureCanvasTkAgg(plt, master=self.plotFrame)
+        p=pyaudio.PyAudio()
+        stream=p.open(format=pyaudio.paInt16,channels=1,rate=RATE,input=True,
+                      frames_per_buffer=CHUNK)
+        for i in range(int(20*RATE/CHUNK)): #do this for 10 seconds
+            startTime=process_time()
+            data = np.frombuffer(stream.read(CHUNK), dtype=np.int16)
+            self.magPlot(data,mPlt)
+            self.freqPlot(data,fPlt)
+            self.pitchPlot(data,pPlt,RATE)
+            canvas.draw()
+            canvas.get_tk_widget().pack(side=TOP, fill=BOTH, expand=1)
+            elapsedTime=process_time()-startTime
+            self.processingTime.set(elapsedTime)
+        stream.stop_stream()
+        stream.close()
+        p.terminate()
 
     def procesSignalsFromFile(self):
         startTime=process_time()
