@@ -11,7 +11,7 @@
     <OutputPath>.</OutputPath>
     <Name>PDA</Name>
     <RootNamespace>PDA</RootNamespace>
-    <InterpreterId>CondaEnv|CondaEnv|cusignal</InterpreterId>
+    <InterpreterId>CondaEnv|CondaEnv|PitchDeterminationAlgorithm</InterpreterId>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
     <DebugSymbols>true</DebugSymbols>
@@ -25,8 +25,7 @@
     <Compile Include="PDA.py" />
   </ItemGroup>
   <ItemGroup>
-    <InterpreterReference Include="CondaEnv|CondaEnv|Anaconda3" />
-    <InterpreterReference Include="CondaEnv|CondaEnv|cusignal" />
+    <InterpreterReference Include="CondaEnv|CondaEnv|PitchDeterminationAlgorithm" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
   <!-- Uncomment the CoreCompile target to enable the Build command in
