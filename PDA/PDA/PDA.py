@@ -36,6 +36,20 @@ class PDA(object):
         def __str__(self):
             return type(self).__name__
 
+    class PdaGui(PdaInner):
+        def __init__(self):
+            self.window=Tk()
+            self.commandForm=PDA.CommandForm()
+            self.pdaPlots=PDA.PdaPlots()
+
+    class CommandForm(PdaInner):
+        def __init__(self, frm):
+            pass
+
+    class ProcessorSwitch(PdaInner):
+        def __init__(self, frm):
+            pass
+
     class MagnitudePlot(PdaInner):
         XLABEL_STR = 'Samples'
         YLABEL_STR = 'Magnitude'
