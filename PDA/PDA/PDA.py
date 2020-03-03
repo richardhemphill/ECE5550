@@ -17,7 +17,6 @@ import os
 import pyaudio
 
 class PDA(object):
-
     # Constants
     PDA_TITLE="Pitch Determination Algorithm"   # window title
     WINDOW_GEOMETRY='640x480'                   # default size
@@ -30,121 +29,9 @@ class PDA(object):
 
     # Member Variables
 
-
-    # Inner Classes
-    class PdaInner:
-        def __str__(self):
-            return type(self).__name__
-
-    class PdaGui(PdaInner):
-        def __init__(self):
-            self.window=Tk()
-            self.commandForm=PDA.CommandForm()
-            self.pdaPlots=PDA.PdaPlots()
-
-    class CommandForm(PdaInner):
-        def __init__(self, frm):
-            pass
-
-    class ProcessorSwitch(PdaInner):
-        def __init__(self, frm):
-            pass
-
-    class MagnitudePlot(PdaInner):
-        XLABEL_STR = 'Samples'
-        YLABEL_STR = 'Magnitude'
-        LABEL_FONTSIZE = 12
-
-        def __init__(self, plt):
-            self.plt = plt.add_subplot(311)
-            self.plt.set_xlabel(self.XLABEL_STR, fontsize=self.LABEL_FONTSIZE)
-            self.plt.set_ylabel(self.YLABEL_STR, fontsize=self.LABEL_FONTSIZE)
-
-        def update(self, data):
-            self.plt.clear()
-            self.plt.plot(data)
-            self.plt.axis([0,len(data),-2**16/2,2**16/2])
-
-    class FrequencyPlot(PdaInner):
-        XLABEL_STR = 'Time'
-        YLABEL_STR = 'Frequency (Hz)'
-        LABEL_FONTSIZE = 12
-        AUTOSCALE_ENABLE = True
-        AUTOSCALE_AXIS = 'x'
-        AUTOSCALE_TIGHT = TRUE
-
-        def __init__(self, plt, rate=44100, nttf=1024, noverlap=900, cmap='gray_r'):
-            self.plt = plt.add_subplot(312)
-            self.plt.set_xlabel(self.XLABEL_STR, fontsize=self.LABEL_FONTSIZE)
-            self.plt.set_ylabel(self.YLABEL_STR, fontsize=self.LABEL_FONTSIZE)
-            self.rate = rate
-            self.nttf = nttf
-            self.noverlap = noverlap
-            self.cmap = cmap
-
-        def update(self, data):
-            self.plt.specgram(data, NFFT=self.nttf, Fs=self.rate, noverlap=self.noverlap, cmap=self.cmap)
-            self.plt.autoscale(enable=self.AUTOSCALE_ENABLE, axis=self.AUTOSCALE_AXIS, tight=self.AUTOSCALE_TIGHT)
-
-    class PitchPlot(PdaInner):
-        XLABEL_STR = 'Samples'
-        YLABEL_STR = 'Pitch (Hz)'
-        LABEL_FONTSIZE = 12
-        PITCH_LABEL = 'pitch interpolation'
-        PITCH_COLOR = 'green'
-        STEP_LABEL = 'step interpolation'
-        STEP_COLOR = 'blue'
-        SPLINE_LABEL = 'spline interpolation'
-        SPLINE_COLOR = 'red'
-        LEGEND_LOC = 'upper right'
-        AUTOSCALE_ENABLE = True
-        AUTOSCALE_AXIS = 'x'
-        AUTOSCALE_TIGHT = TRUE
-
-        def __init__(self, plt, rate=44100):
-            self.plt = plt.add_subplot(313)
-            self.plt.set_xlabel(self.XLABEL_STR, fontsize=self.LABEL_FONTSIZE)
-            self.plt.set_ylabel(self.YLABEL_STR, fontsize=self.LABEL_FONTSIZE)
-            self.rate = rate
-
-        def update(self, data):
-            self.plt.clear()
-            basicSignal = basic.SignalObj(data, self.rate)
-            pitch = pYAAPT.yaapt(basicSignal)
-            self.plt.plot(pitch.values, label=self.PITCH_LABEL, color=self.PITCH_COLOR)
-            pitch.set_values(pitch.samp_values, len(pitch.values), interp_tech='step')
-            self.plt.plot(pitch.values, label=self.STEP_LABEL, color=self.STEP_COLOR)
-            pitch.set_values(pitch.samp_values, len(pitch.values), interp_tech='spline')
-            self.plt.plot(pitch.values, label=self.SPLINE_LABEL, color=self.SPLINE_COLOR)
-            self.plt.legend(loc=self.LEGEND_LOC)
-            self.plt.grid
-            self.plt.axes.set_ylim([0,1000])
-            self.plt.autoscale(enable=self.AUTOSCALE_ENABLE, axis=self.AUTOSCALE_AXIS, tight=self.AUTOSCALE_TIGHT)
-
-    class PdaPlots(PdaInner):
-        TITLE_STR = 'Signal'
-        TITLE_FONTSIZE = 14
-
-        def __init__(self, frame):
-            self.frame = frame
-            self.frame.pack(anchor=CENTER, fill=BOTH, expand=YES)
-            self.plt=Figure()
-            self.plt.suptitle(self.TITLE_STR, fontsize=self.TITLE_FONTSIZE)
-            self.mPlt = PDA.MagnitudePlot(self.plt)
-            self.fPlt = PDA.FrequencyPlot(self.plt)
-            self.pPlt = PDA.PitchPlot(self.plt)
-            self.canvas = FigureCanvasTkAgg(self.plt, master=self.frame)
-
-    class CpuPlots(PdaPlots):
-        def __init__(self, frame):
-            super(PDA.CpuPlots,self).__init__(frame)
-
-    class GpuPlots(PdaPlots):
-        def __init__(self, frame):
-            super(PDA.GpuPlots,self).__init__(frame)
-
-    # PDA Constructor
+    # Constructor
     def __init__(self):
+        self.importCusignal()
         self.display()
 
     # Main Run Loop
@@ -192,13 +79,16 @@ class PDA(object):
         f.pack(anchor=N, fill=X, expand=YES)
 
     def gpuSwitch(self, containerFrame):
-        f=Frame(containerFrame)
-        self.procMode = IntVar(containerFrame,1) # default to GPU mode
-        for (text, mode) in self.PROCESSING_MODES.items():
-            r = Radiobutton(f, text=text, variable=self.procMode,
-                value=mode, indicator=0, background="light blue")
-            r.pack(side=LEFT)
-        f.pack(side=LEFT, padx=10)
+        if self._cusignal is None:
+            pass                        # can't use cusignal module
+        else:
+           f=Frame(containerFrame)
+           self.procMode = IntVar(containerFrame,1) # default to GPU mode
+           for (text, mode) in self.PROCESSING_MODES.items():
+                r = Radiobutton(f, text=text, variable=self.procMode,
+                    value=mode, indicator=0, background="light blue")
+                r.pack(side=LEFT)
+           f.pack(side=LEFT, padx=10)
 
     def srcSwitch(self, containerFrame):
         f=Frame(containerFrame)
@@ -368,6 +258,9 @@ class PDA(object):
         b=Button(f, text="Browse", command=lambda:self.loadFile())
         b.pack(side=LEFT)
         f.pack(side=LEFT, padx=10, fill=X, expand=YES)
+
+    def importCusignal(self):
+        self._cusignal = importlib.util.find_spec('cusignal')
 
 if __name__ == '__main__':
     PDA().run()
