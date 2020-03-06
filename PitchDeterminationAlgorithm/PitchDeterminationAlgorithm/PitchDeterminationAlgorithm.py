@@ -36,11 +36,11 @@ class PitchDeterminationAlgorithm(object):
 
     ## Constructor
     def __init__(self):
-        self.gui=PitchDeterminationAlgorithm.GUI()
+        self.__gui=PitchDeterminationAlgorithm.GUI()
 
     ## Starts the Pitch Determination Algorithm
     def run(self):
-        self.gui.run()
+        self.__gui.run()
 
     #####################
     ### Inner Classes ###
@@ -51,39 +51,39 @@ class PitchDeterminationAlgorithm(object):
     ## Class that sets up and manages the graphical interface.
     class GUI(object):
         # Constants
-        PDA_TITLE="Pitch Determination Algorithm"   # window title
-        WINDOW_PERCENT_SCREEN=0.75                  # use 75% screen width and height
+        TITLE='Pitch Determination Algorithm'   # window title
+        SCREEN_PERCENT=0.75                     # use 75% screen width and height
 
-        # Public GUI Members
+        # Public GUI Methods
 
         ## Constructor
         def __init__(self):
-            self.window=Tk()
-            self.__configureWindow(self.window)
-            self.commandForm=PitchDeterminationAlgorithm.CommandForm(self.window)
-            self.pdaPlots=PitchDeterminationAlgorithm.PdaPlots(self.window)
+            self.__window=Tk()
+            self.__configureWindow()
+            self.__commandForm=PitchDeterminationAlgorithm.CommandForm(self.__window)
+            self.__pdaPlots=PitchDeterminationAlgorithm.PdaPlots(self.__window)
 
         ## Activates the GUI
         def run(self):
-            self.window.mainloop()
+            self.__window.mainloop()
 
         # Private GUI Members
 
         ## Initializes the look of the GUI
-        def __configureWindow(self, window):
-            window.geometry(self.__windowSize(window))
-            window.resizable(width=True, height=True)
-            window.title(self.PDA_TITLE)
+        def __configureWindow(self):
+            self.__window.geometry(self.__windowSize())
+            self.__window.resizable(width=True, height=True)
+            self.__window.title(self.TITLE)
 
-        ## Determines the size the GUI window
-        def __windowSize(self,window):
+        ## Return geometry per the size the GUI window
+        def __windowSize(self):
             # get screen size
-            screenWidth=window.winfo_screenwidth()
-            screenHeight=window.winfo_screenheight()
+            screenWidth=self.__window.winfo_screenwidth()
+            screenHeight=self.__window.winfo_screenheight()
 
             # set window size to be within screen
-            windowWidth=int(screenWidth*self.WINDOW_PERCENT_SCREEN)
-            windowHeight=int(screenHeight*self.WINDOW_PERCENT_SCREEN)
+            windowWidth=int(screenWidth*self.SCREEN_PERCENT)
+            windowHeight=int(screenHeight*self.SCREEN_PERCENT)
 
             # format to string that for geometry call
             return "{}x{}".format(windowWidth,windowHeight)
@@ -95,11 +95,11 @@ class PitchDeterminationAlgorithm(object):
 
         ## Constructor
         def __init__(self, window):
-            self.frame=Frame(window)
-            self.processorSwitch = PitchDeterminationAlgorithm.ProcessorSwitch(self.frame)
-            self.sourceSwitch = PitchDeterminationAlgorithm.SourceSwitch(self.frame)
-            self.fileBrowser = PitchDeterminationAlgorithm.FileBrowser(self.frame)
-            self.frame.pack(anchor=N, fill=X, expand=YES)
+            self.__frame=Frame(window)
+            self.__processorSwitch = PitchDeterminationAlgorithm.ProcessorSwitch(self.__frame)
+            self.__sourceSwitch = PitchDeterminationAlgorithm.SourceSwitch(self.__frame)
+            self.__fileBrowser = PitchDeterminationAlgorithm.FileBrowser(self.__frame)
+            self.__frame.pack(anchor=N, fill=X, expand=YES)
 
     ## Genralized class for toggle switched in the GUI.
     class CommandSwitch(object):
@@ -107,17 +107,17 @@ class PitchDeterminationAlgorithm(object):
 
         ## Constructor
         def __init__(self, form, modes, default=DEFAULT_MODE, color=None):
-           self.frame=Frame(form)
-           self.switch = IntVar(form,self.DEFAULT_MODE)
+           self.__frame=Frame(form)
+           self.__switch = IntVar(form,self.DEFAULT_MODE)
            for (text, mode) in modes.items():           # itterate thru modes
-                r = Radiobutton(master=self.frame)      # parent widget
+                r = Radiobutton(master=self.__frame)      # parent widget
                 r.config(text=text)                     # button display text
-                r.config(variable=self.switch)          # switch variable
+                r.config(variable=self.__switch)          # switch variable
                 r.config(value=mode)                    # value of switch
                 r.config(indicatoron=False)             # raised/sunken button
                 if color is not None: r.config(background=color) # set color
                 r.pack(side=LEFT)                       # next left within parent widget
-           self.frame.pack(side=LEFT, padx=10)
+           self.__frame.pack(side=LEFT, padx=10)
 
     ## Class for toggling between which type of process will handle calculations.
     class ProcessorSwitch(CommandSwitch):
@@ -146,15 +146,15 @@ class PitchDeterminationAlgorithm(object):
 
         ## Constructor
         def __init__(self, form):
-            self.frame=Frame(form)
-            self.srcFile=StringVar()
-            self.prevSrcFile=None
-            self.entry=Entry(self.frame, textvariable=self.srcFile, justify=LEFT)
-            self.entry.bind("<Return>", self.__OnFileEntryClick)
-            self.entry.pack(side=LEFT, fill=X, expand=YES)
-            self.button=Button(self.frame, text="Browse", command=lambda:self.__loadFile())
-            self.button.pack(side=LEFT)
-            self.frame.pack(side=LEFT, padx=10, fill=X, expand=YES)
+            self.__frame=Frame(form)
+            self.__srcFile=StringVar()
+            self.__prevSrcFile=None
+            self.__entry=Entry(self.__frame, textvariable=self.__srcFile, justify=LEFT)
+            self.__entry.bind("<Return>", self.__OnFileEntryClick)
+            self.__entry.pack(side=LEFT, fill=X, expand=YES)
+            self.__button=Button(self.__frame, text="Browse", command=lambda:self.__loadFile())
+            self.__button.pack(side=LEFT)
+            self.__frame.pack(side=LEFT, padx=10, fill=X, expand=YES)
 
         # Private FileBrowser Members
 
@@ -163,18 +163,18 @@ class PitchDeterminationAlgorithm(object):
             fileName=askopenfilename(title = "Select sound file",
                 filetypes = (("Wave files","*.wav"), 
                              ("MP3 files","*.mp3")))
-            self.srcFile.set(fileName)
+            self.__srcFile.set(fileName)
             self.srcMode.set(self.INPUT_SOURCES.get('FILE'))
             #self.processSignals()
 
-        ## 
+        ## Action when files has been selected.
         def __OnFileEntryClick(self, event):
-            value=self.srcFile.get().strip()
-            changed = True if self.prevSrcFile != value else False
+            value=self.__srcFile.get().strip()
+            changed = True if self.__prevSrcFile != value else False
             if changed:
                 self.srcMode.set(self.INPUT_SOURCES.get('FILE'))
                 #self.processSignals()
-            self.prevSrcFile=value
+            self.__prevSrcFile=value
 
     class MagnitudePlot(object):
         XLABEL_STR = 'Samples'
@@ -182,17 +182,17 @@ class PitchDeterminationAlgorithm(object):
         LABEL_FONTSIZE = 12
 
         def __init__(self, plt):
-            self.plt = plt.add_subplot(311)
-            self.plt.set_xlabel(self.XLABEL_STR, fontsize=self.LABEL_FONTSIZE)
-            self.plt.set_ylabel(self.YLABEL_STR, fontsize=self.LABEL_FONTSIZE)
+            self.__plt = plt.add_subplot(311)
+            self.__plt.set_xlabel(self.XLABEL_STR, fontsize=self.LABEL_FONTSIZE)
+            self.__plt.set_ylabel(self.YLABEL_STR, fontsize=self.LABEL_FONTSIZE)
 
         def update(self, data):
-            self.data = data
+            self.__data = data
 
         def display(self):
-            self.plt.clear()
-            self.plt.plot(self.data)
-            self.plt.axis([0,len(data),-2**16/2,2**16/2])
+            self.__plt.clear()
+            self.__plt.plot(self.__data)
+            self.__plt.axis([0,len(data),-2**16/2,2**16/2])
 
     class FrequencyPlot(object):
         XLABEL_STR = 'Time'
@@ -203,20 +203,20 @@ class PitchDeterminationAlgorithm(object):
         AUTOSCALE_TIGHT = True
 
         def __init__(self, plt, rate=44100, nttf=1024, noverlap=900, cmap='gray_r'):
-            self.plt = plt.add_subplot(312)
-            self.plt.set_xlabel(self.XLABEL_STR, fontsize=self.LABEL_FONTSIZE)
-            self.plt.set_ylabel(self.YLABEL_STR, fontsize=self.LABEL_FONTSIZE)
-            self.rate = rate
-            self.nttf = nttf
-            self.noverlap = noverlap
-            self.cmap = cmap
+            self.__plt = plt.add_subplot(312)
+            self.__plt.set_xlabel(self.XLABEL_STR, fontsize=self.LABEL_FONTSIZE)
+            self.__plt.set_ylabel(self.YLABEL_STR, fontsize=self.LABEL_FONTSIZE)
+            self.__rate = rate
+            self.__nttf = nttf
+            self.__noverlap = noverlap
+            self.__cmap = cmap
 
         def update(self, data):
             self.data = data
 
         def display(self):
-            self.plt.specgram(self.data, NFFT=self.nttf, Fs=self.rate, noverlap=self.noverlap, cmap=self.cmap)
-            self.plt.autoscale(enable=self.AUTOSCALE_ENABLE, axis=self.AUTOSCALE_AXIS, tight=self.AUTOSCALE_TIGHT)
+            self.__plt.specgram(self.data, NFFT=self.__nttf, Fs=self.__rate, noverlap=self.__noverlap, cmap=self.__cmap)
+            self.__plt.autoscale(enable=self.AUTOSCALE_ENABLE, axis=self.AUTOSCALE_AXIS, tight=self.AUTOSCALE_TIGHT)
 
     class PitchPlot(object):
         XLABEL_STR = 'Samples'
@@ -234,51 +234,51 @@ class PitchDeterminationAlgorithm(object):
         AUTOSCALE_TIGHT = True
 
         def __init__(self, plt, rate=44100):
-            self.plt = plt.add_subplot(313)
-            self.plt.set_xlabel(self.XLABEL_STR, fontsize=self.LABEL_FONTSIZE)
-            self.plt.set_ylabel(self.YLABEL_STR, fontsize=self.LABEL_FONTSIZE)
-            self.rate = rate
+            self.__plt = plt.add_subplot(313)
+            self.__plt.set_xlabel(self.XLABEL_STR, fontsize=self.LABEL_FONTSIZE)
+            self.__plt.set_ylabel(self.YLABEL_STR, fontsize=self.LABEL_FONTSIZE)
+            self.__rate = rate
 
         def update(self, data):
-            basicSignal = basic.SignalObj(data, self.rate)
-            self.pitch = pitch = pYAAPT.yaapt(basicSignal)
-            self.pitchStep = pitch.set_values(pitch.samp_values, len(pitch.values), interp_tech='step')
-            self.pitchSpline = pitch.set_values(pitch.samp_values, len(pitch.values), interp_tech='spline')
+            basicSignal = basic.SignalObj(data, self.__rate)
+            self.__pitch = pitch = pYAAPT.yaapt(basicSignal)
+            self.__pitchStep = pitch.set_values(pitch.samp_values, len(pitch.values), interp_tech='step')
+            self.__pitchSpline = pitch.set_values(pitch.samp_values, len(pitch.values), interp_tech='spline')
 
         def display(self):
-            self.plt.clear()
-            self.plt.plot(self.pitch.values, label=self.PITCH_LABEL, color=self.PITCH_COLOR)
-            self.plt.plot(self.pitchStep.values, label=self.STEP_LABEL, color=self.STEP_COLOR)
-            self.plt.plot(self.pitchSpline.values, label=self.SPLINE_LABEL, color=self.SPLINE_COLOR)
-            self.plt.legend(loc=self.LEGEND_LOC)
-            self.plt.grid
-            self.plt.axes.set_ylim([0,1000])
-            self.plt.autoscale(enable=self.AUTOSCALE_ENABLE, axis=self.AUTOSCALE_AXIS, tight=self.AUTOSCALE_TIGHT)
+            self.__plt.clear()
+            self.__plt.plot(self.__pitch.values, label=self.PITCH_LABEL, color=self.PITCH_COLOR)
+            self.__plt.plot(self.__pitchStep.values, label=self.STEP_LABEL, color=self.STEP_COLOR)
+            self.__plt.plot(self.__pitchSpline.values, label=self.SPLINE_LABEL, color=self.SPLINE_COLOR)
+            self.__plt.legend(loc=self.LEGEND_LOC)
+            self.__plt.grid
+            self.__plt.axes.set_ylim([0,1000])
+            self.__plt.autoscale(enable=self.AUTOSCALE_ENABLE, axis=self.AUTOSCALE_AXIS, tight=self.AUTOSCALE_TIGHT)
 
     class PdaPlots:
         TITLE_STR = 'Signal'
         TITLE_FONTSIZE = 14
 
         def __init__(self, win):
-            self.frame = Frame(win)
-            self.frame.pack(anchor=CENTER, fill=BOTH, expand=YES)
-            self.plt=Figure()
-            self.plt.suptitle(self.TITLE_STR, fontsize=self.TITLE_FONTSIZE)
-            self.subPlots = list()
-            self.mPlt = PitchDeterminationAlgorithm.MagnitudePlot(self.plt)
-            self.subPlots.append(self.mPlt)
-            self.fPlt = PitchDeterminationAlgorithm.FrequencyPlot(self.plt)
-            self.subPlots.append(self.fPlt)
-            self.pPlt = PitchDeterminationAlgorithm.PitchPlot(self.plt)
-            self.subPlots.append(self.pPlt)
-            self.canvas = FigureCanvasTkAgg(self.plt, master=self.frame)
+            self.__frame = Frame(win)
+            self.__frame.pack(anchor=CENTER, fill=BOTH, expand=YES)
+            self.__plt=Figure()
+            self.__plt.suptitle(self.TITLE_STR, fontsize=self.TITLE_FONTSIZE)
+            self.__subPlots = list()
+            self.__mPlt = PitchDeterminationAlgorithm.MagnitudePlot(self.__plt)
+            self.__subPlots.append(self.__mPlt)
+            self.__fPlt = PitchDeterminationAlgorithm.FrequencyPlot(self.__plt)
+            self.__subPlots.append(self.__fPlt)
+            self.__pPlt = PitchDeterminationAlgorithm.PitchPlot(self.__plt)
+            self.__subPlots.append(self.__pPlt)
+            self.__canvas = FigureCanvasTkAgg(self.__plt, master=self.__frame)
 
         def update(self,data):
-            for plt in self.subPlots:
+            for plt in self.__subPlots:
                 plt.update(data)
 
         def display(self):
-            for plt in self.subPlots:
+            for plt in self.__subPlots:
                 plt.diplay()
 
     class CpuPlots(PdaPlots):
@@ -292,7 +292,7 @@ class PitchDeterminationAlgorithm(object):
     ### Processing Classes ###
 
     ## Class to handle pitch processing
-    #  This is a sigleton so that only one instance keeps processed data
+    #  This is a sigleton so that only one instance keeps processed data.
     class PitchProcessor(object):
         __instance = None
 
