@@ -3,7 +3,7 @@
 #import importlib
 from tkinter import *
 #from tkinter import messagebox
-#from tkinter.filedialog import askopenfilename
+from tkinter.filedialog import askopenfilename
 #import amfm_decompy.pYAAPT as pYAAPT
 #import amfm_decompy.basic_tools as basic
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
@@ -20,18 +20,99 @@ class PitchDeterminationAlgorithm(object):
 
     # Inner Classes
     class Gui:
+        PDA_TITLE="Pitch Determination Algorithm"   # window title
+        WINDOW_PERCENT_SCREEN=0.75                  # use 75% screen width and height
+
         def __init__(self):
             self.window=Tk()
+            self.__configureWindow(self.window)
             self.commandForm=PitchDeterminationAlgorithm.CommandForm(self.window)
             self.pdaPlots=PitchDeterminationAlgorithm.PdaPlots(self.window)
 
-    class CommandForm:
-        def __init__(self, win):
-            pass
+        def run(self):
+            self.window.mainloop()
 
-    class ProcessorSwitch:
+        def __configureWindow(self, window):
+            window.geometry(self.__windowSize(window))
+            window.resizable(width=True, height=True)
+            window.title(self.PDA_TITLE)
+
+        def __windowSize(self,window):
+            # get screen size
+            screenWidth=window.winfo_screenwidth()
+            screenHeight=window.winfo_screenheight()
+
+            # set window size to be within screen
+            windowWidth=int(screenWidth*self.WINDOW_PERCENT_SCREEN)
+            windowHeight=int(screenHeight*self.WINDOW_PERCENT_SCREEN)
+
+            # format to string that for geometry call
+            return "{}x{}".format(windowWidth,windowHeight)
+
+    class CommandForm:
+        def __init__(self, window):
+            f=Frame(window)
+            self.processorSwitch = PitchDeterminationAlgorithm.ProcessorSwitch(f)
+            self.sourceSwitch = PitchDeterminationAlgorithm.SourceSwitch(f)
+            self.fileBrowser = PitchDeterminationAlgorithm.FileBrowser(f)
+            f.pack(anchor=N, fill=X, expand=YES)
+
+    class CommandSwitch:
+        DEFAULT_MODE=1              # default to GPU mode
+        DEFAULT_COLOR='light blue'  # default color to blue
+
+        def __init__(self, frm, modes, default=DEFAULT_MODE, color=DEFAULT_COLOR):
+           f=Frame(frm)
+           self.switch = IntVar(frm,self.DEFAULT_MODE)
+           for (text, mode) in modes.items():
+                r = Radiobutton(f, text=text, variable=self.switch,
+                    value=mode, indicator=0, background=color)
+                r.pack(side=LEFT)
+           f.pack(side=LEFT, padx=10)
+
+    class ProcessorSwitch(CommandSwitch):
+        MODES={"GPU":1,"CPU":2}
+        DEFAULT_MODE=1              # default to GPU mode
+        SWITCH_COLOR='light blue'
+
+        def __init__(self, form):
+            super().__init__(form, self.MODES, self.DEFAULT_MODE, self.SWITCH_COLOR)
+
+    class SourceSwitch(CommandSwitch):
+        MODES={"MIC":1,"FILE":2}
+        DEFAULT_MODE=2              # default to File mode
+        SWITCH_COLOR='pink'
+
+        def __init__(self, form):
+            super().__init__(form, self.MODES, self.DEFAULT_MODE, self.SWITCH_COLOR)
+
+    class FileBrowser:
         def __init__(self, frm):
-            pass
+            f=Frame(frm)
+            self.srcFile=StringVar()
+            self.prevSrcFile=''
+            l=Entry(f, textvariable=self.srcFile, justify=LEFT)
+            l.bind("<Return>", self.OnFileEntryClick)
+            l.pack(side=LEFT, fill=X, expand=YES)
+            b=Button(f, text="Browse", command=lambda:self.loadFile())
+            b.pack(side=LEFT)
+            f.pack(side=LEFT, padx=10, fill=X, expand=YES)
+
+        def loadFile(self):
+            fileName=askopenfilename(title = "Select sound file",
+                filetypes = (("Wave files","*.wav"), 
+                             ("MP3 files","*.mp3")))
+            self.srcFile.set(fileName)
+            self.srcMode.set(self.INPUT_SOURCES.get('FILE'))
+            #self.processSignals()
+
+        def OnFileEntryClick(self, event):
+            value=self.srcFile.get().strip()
+            changed = True if self.prevSrcFile != value else False
+            if changed:
+                self.srcMode.set(self.INPUT_SOURCES.get('FILE'))
+                self.processSignals()
+            self.prevSrcFile=value
 
     class MagnitudePlot:
         XLABEL_STR = 'Samples'
@@ -121,10 +202,27 @@ class PitchDeterminationAlgorithm(object):
             self.frame.pack(anchor=CENTER, fill=BOTH, expand=YES)
             self.plt=Figure()
             self.plt.suptitle(self.TITLE_STR, fontsize=self.TITLE_FONTSIZE)
+
+            self.subPlots = list()
+
             self.mPlt = PitchDeterminationAlgorithm.MagnitudePlot(self.plt)
+            self.subPlots.append(self.mPlt)
+
             self.fPlt = PitchDeterminationAlgorithm.FrequencyPlot(self.plt)
+            self.subPlots.append(self.fPlt)
+
             self.pPlt = PitchDeterminationAlgorithm.PitchPlot(self.plt)
+            self.subPlots.append(self.pPlt)
+
             self.canvas = FigureCanvasTkAgg(self.plt, master=self.frame)
+
+        def update(self,data):
+            for plt in self.subPlots:
+                plt.update(data)
+
+        def display(self):
+            for plt in self.subPlots:
+                plt.diplay()
 
     class CpuPlots(PdaPlots):
         def __init__(self, frame):
@@ -140,7 +238,7 @@ class PitchDeterminationAlgorithm(object):
 
     # Main Run Loop
     def run(self):
-        print('running')
+        self.gui.run()
 
 if __name__ == '__main__':
     pda = PitchDeterminationAlgorithm()
