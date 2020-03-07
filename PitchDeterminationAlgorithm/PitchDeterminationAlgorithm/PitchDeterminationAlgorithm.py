@@ -14,37 +14,43 @@
 #import time
 #from time import process_time
 #import importlib
-from tkinter import *
+import tkinter as tk
 #from tkinter import messagebox
 from tkinter.filedialog import askopenfilename
-#import amfm_decompy.pYAAPT as pYAAPT
-#import amfm_decompy.basic_tools as basic
+import amfm_decompy.pYAAPT as pYAAPT
+import amfm_decompy.basic_tools as basic
+import amfm_decompy_cuda.pYAAPT as pYAAPT_cuda
+import amfm_decompy_cuda.basic_tools as basic_cuda
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 #from matplotlib.backend_bases import key_press_handler
 from matplotlib.figure import Figure
 #import matplotlib.pyplot as pplt 
-#import numpy as np
-#import wave
+import numpy as np
+import cupy as cp
+import wave
 #import sys
-#import os
+import os
 #import pyaudio
 from enum import Enum
 
-# Pattern Classes
+# Types
 
 class Singleton(type):
+    __instance=None
     def __init__(cls,name,bases,dic):
         super(Singleton,cls).__init__(name,bases,dic)
-        cls.instance=None
     def __call__(cls,*args,**kw):
         if cls.instance is None:
-            cls.instance=super(Singleton,cls).__call__(*args,**kw)
-        return cls.instance
+            cls.__instance=super(Singleton,cls).__call__(*args,**kw)
+        return cls.__instance
+    @property
+    def instance(cls):
+        return cls.__instance
 
 ## Class containing functionality needed for Pitch Determination Algorithm
-class PitchDeterminationAlgorithm(object):
+class PDA(object):
 
-    # PitchDeterminationAlgorithm Enumerations
+    # Types
 
     class ProcessingModes(Enum):
         CPU  = 1
@@ -54,11 +60,11 @@ class PitchDeterminationAlgorithm(object):
         FILE = 1
         MIC  = 2
 
-    # Public PitchDeterminationAlgorithm Members
+    # Members
 
     ## Constructor
     def __init__(self):
-        self.__gui=PitchDeterminationAlgorithm.GUI()
+        self.__gui=PDA.GUI()
 
     ## Starts the Pitch Determination Algorithm
     def run(self):
@@ -80,10 +86,10 @@ class PitchDeterminationAlgorithm(object):
 
         ## Constructor
         def __init__(self):
-            self.__window=Tk()
+            self.__window=tk.Tk()
             self.__configureWindow()
-            self.__commandForm=PitchDeterminationAlgorithm.CommandForm(self.__window)
-            self.__pdaPlots=PitchDeterminationAlgorithm.PdaPlots(self.__window)
+            self.__commandForm=PDA.CommandForm(self.__window)
+            self.__pdaPlots=PDA.PdaPlots(self.__window)
 
         ## Activates the GUI
         def run(self):
@@ -110,18 +116,16 @@ class PitchDeterminationAlgorithm(object):
             # format to string that for geometry call
             return "{}x{}".format(windowWidth,windowHeight)
 
-    ## GUI Controls ##
-
     ## Class that manages the window form for controlling the GUI.
     class CommandForm(object):
 
         ## Constructor
         def __init__(self, window):
-            self.__frame=Frame(window)
-            self.__processorSwitch = PitchDeterminationAlgorithm.ProcessorSwitch(self.__frame)
-            self.__sourceSwitch = PitchDeterminationAlgorithm.SourceSwitch(self.__frame)
-            self.__fileBrowser = PitchDeterminationAlgorithm.FileBrowser(self.__frame)
-            self.__frame.pack(anchor=N, fill=X, expand=YES)
+            self.__frame=tk.Frame(window)
+            self.__processorSwitch = PDA.ProcessorSwitch(self.__frame)
+            self.__sourceSwitch = PDA.SourceSwitch(self.__frame)
+            self.__fileBrowser = PDA.FileBrowser(self.__frame)
+            self.__frame.pack(anchor=tk.N, fill=tk.X, expand=tk.YES)
 
     ## Genralized class for toggle switched in the GUI.
     class CommandSwitch(object, metaclass=Singleton):
@@ -132,17 +136,17 @@ class PitchDeterminationAlgorithm(object):
 
         ## Constructor
         def __init__(self, form, modes, color=None, default=DEFAULT_MODE):
-            self.__frame=Frame(form)
-            self.__mode = IntVar(form, default)
-            for mode in modes:                           # itterate thru modes
-                r = Radiobutton(master=self.__frame)    # parent widget
+            self.__frame=tk.Frame(form)
+            self.__mode = tk.IntVar(form, default)
+            for mode in modes:                          # itterate thru modes
+                r = tk.Radiobutton(master=self.__frame) # parent widget
                 r.config(text=mode.name)                # button display text
                 r.config(variable=self.__mode)          # switch variable
                 r.config(value=mode.value)              # value of switch
                 r.config(indicatoron=False)             # raised/sunken button
                 r.config(background=color)              # set color
-                r.pack(side=LEFT)                       # next left in parent
-            self.__frame.pack(side=LEFT, padx=10)
+                r.pack(side=tk.LEFT)                    # next left in parent
+            self.__frame.pack(side=tk.LEFT, padx=10)
 
         @property
         def mode(self):
@@ -150,7 +154,7 @@ class PitchDeterminationAlgorithm(object):
 
         @mode.setter
         def mode(self, value):
-            self.__mode = value
+            self.__mode.set(value)
 
     ## Class for toggling between which type of process will handle calculations.
     class ProcessorSwitch(CommandSwitch):
@@ -158,7 +162,7 @@ class PitchDeterminationAlgorithm(object):
 
         ## Constructor
         def __init__(self, form):
-            self.__modes=PitchDeterminationAlgorithm.ProcessingModes
+            self.__modes=PDA.ProcessingModes
             super().__init__(form=form, modes=self.__modes, color=self.COLOR)
 
     ## Class for toggling between source for auditory data.
@@ -167,7 +171,7 @@ class PitchDeterminationAlgorithm(object):
 
         ## Constructor
         def __init__(self, form):
-            self.__modes=PitchDeterminationAlgorithm.InputSources
+            self.__modes=PDA.InputSources
             super().__init__(form=form, modes=self.__modes, color=self.COLOR)
 
     ## Class for selecting sound file.
@@ -183,34 +187,44 @@ class PitchDeterminationAlgorithm(object):
 
         ## Constructor
         def __init__(self, form):
-            self.__frame=Frame(form)
-            self.__sourceSwitch=PitchDeterminationAlgorithm.SourceSwitch()
-            self.__pitchTracker=PitchDeterminationAlgorithm.PitchTracker()
-            self.__srcFile=StringVar()
-            self.__prevSrcFile=None
-            self.__entry=Entry(self.__frame, textvariable=self.__srcFile, justify=LEFT)
+            self.__frame=tk.Frame(form)
+            self.__sourceSwitch=PDA.SourceSwitch()
+            self.__pitchTracker=PDA.PitchTracker()
+            self.__pdaPlots=PDA.PdaPlots.instance
+            self.__file=None
+            self.__entryFile=tk.StringVar()
+            self.__entry=tk.Entry(self.__frame, textvariable=self.__entryFile, justify=tk.LEFT)
             self.__entry.bind("<Return>", self.__OnFileEntryClick)
-            self.__entry.pack(side=LEFT, fill=X, expand=YES)
-            self.__button=Button(self.__frame, text=self.BUTTON_TEXT, command=lambda:self.__loadFile())
-            self.__button.pack(side=LEFT)
-            self.__frame.pack(side=LEFT, padx=10, fill=X, expand=YES)
+            self.__entry.pack(side=tk.LEFT, fill=tk.X, expand=tk.YES)
+            self.__button=tk.Button(self.__frame, text=self.BUTTON_TEXT, command=lambda:self.__loadFile())
+            self.__button.pack(side=tk.LEFT)
+            self.__frame.pack(side=tk.LEFT, padx=10, fill=tk.X, expand=tk.YES)
 
         ## Open dialog window for finding/select file.
         def __loadFile(self):
-            fileName=askopenfilename(title = self.OPEN_TITLE, filetypes = self.FILE_TYPES)
-            self.__srcFile.set(fileName)
-            #self.__srcMode.set(PitchDeterminationAlgorithm.InputSources.FILE)
-            #self.processSignals()
-            self.__sourceSwitch.mode = PitchDeterminationAlgorithm.InputSources.FILE
+            value=askopenfilename(title = self.OPEN_TITLE, filetypes = self.FILE_TYPES)
+            self.__processFile(value)
 
         ## Action when files has been selected.
         def __OnFileEntryClick(self, event):
             value=self.__srcFile.get().strip()
-            changed = True if self.__prevSrcFile != value else False
-            if changed:
-                self.__srcMode.set(PitchDeterminationAlgorithm.InputSources.FILE)
-                #self.processSignals()
-            self.__prevSrcFile=value
+            if self.__file != value:
+                self.__entryFile.set(value)
+                self.__processFile(value)
+
+        def __processFile(self, value):
+            self.__file=value
+            self.__pitchTracker.file = self.__file
+            self.__sourceSwitch.mode = PDA.InputSources.FILE
+            self.__updatePdaPlots()
+
+        def __updatePdaPlots(self):
+            if self.__pdaPlots is None:
+                self.__pdaPlots=PDA.PdaPlots.instance
+                if self.__pdaPlots is not None:
+                    self.__pdaPlots.update()
+            else:
+                self.__pdaPlots.update()
 
     class MagnitudePlot(object):
         XLABEL_STR = 'Samples'
@@ -221,13 +235,12 @@ class PitchDeterminationAlgorithm(object):
             self.__plt = plt.add_subplot(311)
             self.__plt.set_xlabel(self.XLABEL_STR, fontsize=self.LABEL_FONTSIZE)
             self.__plt.set_ylabel(self.YLABEL_STR, fontsize=self.LABEL_FONTSIZE)
+            self.__pitchTracker=PDA.PitchTracker()
 
-        def update(self, data):
-            self.__data = data
-
-        def display(self):
+        def update(self):
             self.__plt.clear()
-            self.__plt.plot(self.__data)
+            data=self.__pitchTracker.data
+            self.__plt.plot(data)
             self.__plt.axis([0,len(data),-2**16/2,2**16/2])
 
     class FrequencyPlot(object):
@@ -246,12 +259,10 @@ class PitchDeterminationAlgorithm(object):
             self.__nttf = nttf
             self.__noverlap = noverlap
             self.__cmap = cmap
+            self.__pitchTracker=PDA.PitchTracker()
 
-        def update(self, data):
-            self.data = data
-
-        def display(self):
-            self.__plt.specgram(self.data, NFFT=self.__nttf, Fs=self.__rate, noverlap=self.__noverlap, cmap=self.__cmap)
+        def update(self):
+            self.__plt.specgram(self.__pitchTracker.data, NFFT=self.__nttf, Fs=self.__rate, noverlap=self.__noverlap, cmap=self.__cmap)
             self.__plt.autoscale(enable=self.AUTOSCALE_ENABLE, axis=self.AUTOSCALE_AXIS, tight=self.AUTOSCALE_TIGHT)
 
     class PitchPlot(object):
@@ -274,68 +285,63 @@ class PitchDeterminationAlgorithm(object):
             self.__plt.set_xlabel(self.XLABEL_STR, fontsize=self.LABEL_FONTSIZE)
             self.__plt.set_ylabel(self.YLABEL_STR, fontsize=self.LABEL_FONTSIZE)
             self.__rate = rate
+            self.__pitchTracker=PDA.PitchTracker()
 
-        def update(self, data):
-            basicSignal = basic.SignalObj(data, self.__rate)
-            self.__pitch = pitch = pYAAPT.yaapt(basicSignal)
-            self.__pitchStep = pitch.set_values(pitch.samp_values, len(pitch.values), interp_tech='step')
-            self.__pitchSpline = pitch.set_values(pitch.samp_values, len(pitch.values), interp_tech='spline')
-
-        def display(self):
+        def update(self):
             self.__plt.clear()
-            self.__plt.plot(self.__pitch.values, label=self.PITCH_LABEL, color=self.PITCH_COLOR)
-            self.__plt.plot(self.__pitchStep.values, label=self.STEP_LABEL, color=self.STEP_COLOR)
-            self.__plt.plot(self.__pitchSpline.values, label=self.SPLINE_LABEL, color=self.SPLINE_COLOR)
+            self.__plt.plot(self._pitchTracker.pitch, label=self.PITCH_LABEL, color=self.PITCH_COLOR)
+            self.__plt.plot(self._pitchTracker.step, label=self.STEP_LABEL, color=self.STEP_COLOR)
+            self.__plt.plot(self._pitchTracker.spline, label=self.SPLINE_LABEL, color=self.SPLINE_COLOR)
             self.__plt.legend(loc=self.LEGEND_LOC)
             self.__plt.grid
             self.__plt.axes.set_ylim([0,1000])
             self.__plt.autoscale(enable=self.AUTOSCALE_ENABLE, axis=self.AUTOSCALE_AXIS, tight=self.AUTOSCALE_TIGHT)
 
-    class PdaPlots:
+    class PdaPlots(object, metaclass=Singleton):
         TITLE_STR = 'Signal'
         TITLE_FONTSIZE = 14
 
         def __init__(self, win):
-            self.__frame = Frame(win)
-            self.__frame.pack(anchor=CENTER, fill=BOTH, expand=YES)
+            self.__frame=tk.Frame(win)
+            self.__frame.pack(anchor=tk.CENTER, fill=tk.BOTH, expand=tk.YES)
             self.__plt=Figure()
             self.__plt.suptitle(self.TITLE_STR, fontsize=self.TITLE_FONTSIZE)
             self.__subPlots = list()
-            self.__mPlt = PitchDeterminationAlgorithm.MagnitudePlot(self.__plt)
+            self.__mPlt = PDA.MagnitudePlot(self.__plt)
             self.__subPlots.append(self.__mPlt)
-            self.__fPlt = PitchDeterminationAlgorithm.FrequencyPlot(self.__plt)
+            self.__fPlt = PDA.FrequencyPlot(self.__plt)
             self.__subPlots.append(self.__fPlt)
-            self.__pPlt = PitchDeterminationAlgorithm.PitchPlot(self.__plt)
+            self.__pPlt = PDA.PitchPlot(self.__plt)
             self.__subPlots.append(self.__pPlt)
             self.__canvas = FigureCanvasTkAgg(self.__plt, master=self.__frame)
 
-        def update(self,data):
+        def update(self):
             for plt in self.__subPlots:
-                plt.update(data)
-
-        def display(self):
-            for plt in self.__subPlots:
-                plt.diplay()
+                plt.update()
 
     class CpuPlots(PdaPlots):
         def __init__(self, frame):
-            super(PitchDeterminationAlgorithm.CpuPlots,self).__init__(frame)
+            super(PDA.CpuPlots,self).__init__(frame)
 
     class GpuPlots(PdaPlots):
         def __init__(self, frame):
-            super(PitchDeterminationAlgorithm.GpuPlots,self).__init__(frame)
+            super(PDA.GpuPlots,self).__init__(frame)
 
     ### Processing Classes ###
 
     ## Class to handle pitch processing
     #  This is a sigleton so that only one instance keeps processed data.
     class PitchTracker(object, metaclass=Singleton):
+        
+        # Constants
+
+        RATE=4800
 
         # Methods
 
         ## Constructor
         def __init__(self):
-            self.__mode = PitchDeterminationAlgorithm.ProcessingModes.CPU
+            self.__mode = PDA.ProcessingModes.CPU
             self.__data = None
             self.__elapsedTime = 0.0
             self.__pitch = None
@@ -349,15 +355,18 @@ class PitchDeterminationAlgorithm(object):
         def mode(self, values):
             self.__mode = values
 
+        @property
+        def data(self):
+            return self.__data
+
         ## Sets the data to be processed
         #  @param values: sound samples
+        @data.setter
         def data(self, values):
             self.__data = values
 
-        data = property(None, data)
-
-        def file(self, values):
-            self.__file = values
+        def file(self, file):
+            self.__file = file
             self.__loadFile()
             self.__track()
 
@@ -390,27 +399,30 @@ class PitchDeterminationAlgorithm(object):
             raw = wave.open(self.__file, "r")
             if raw.getnchannels() == 2:
                 return
-            signal = spf.readframes(-1)
-            self.__data = np.frombuffer(signal, dtype='int16')
+            signal = raw.readframes(-1)
+            self.__setData(signal)
             raw.close()
 
+        def __setData(self, signal):
+            if self.__mode == PDA.ProcessingModes.CPU:
+                self.__data = np.frombuffer(signal, dtype='int16')
+            else:
+                self.__data = cp.frombuffer(signal, dtype='int16')
+
         def __track(self):
+            if self.__mode == PDA.ProcessingModes.CPU:
+                basicSignal = basic.SignalObj(self.__data, self.RATE)
+                pitch = pYAAPT.yaapt(basicSignal)
+            else:
+                basicSignal = basic_cuda.SignalObj(self.__data, self.RATE)
+                self.__pitch = pYAAPT_cuda.yaapt(basicSignal)
             self.__pitch = pitch
             self.__stepInterp = pitch.set_values(pitch.samp_values, len(pitch.values), interp_tech='step')
             self.__splineInterp = pitch.set_values(pitch.samp_values, len(pitch.values), interp_tech='spline')
-
-        def __getTrackedPitch(self):
-            if true:
-                basicSignal = basic.SignalObj(self.__data, self.__rate)
-                pitch = pYAAPT.yaapt(self.__basicSignal)
-            else:
-                basicSignal = basic.SignalObj(self.__data, self.__rate)
-                pitch = pYAAPT.yaapt(self.__basicSignal)
-            return pitch
 
 ###################################
 ### Designated Start of Program ###
 ###################################
 if __name__ == '__main__':
-    pda = PitchDeterminationAlgorithm()     # instantiate PDA object
+    pda = PDA()     # instantiate PDA object
     pda.run()                               # activate PDA object
