@@ -28,9 +28,31 @@ from matplotlib.figure import Figure
 #import sys
 #import os
 #import pyaudio
+from enum import Enum
+
+# Pattern Classes
+
+class Singleton(type):
+    def __init__(cls,name,bases,dic):
+        super(Singleton,cls).__init__(name,bases,dic)
+        cls.instance=None
+    def __call__(cls,*args,**kw):
+        if cls.instance is None:
+            cls.instance=super(Singleton,cls).__call__(*args,**kw)
+        return cls.instance
 
 ## Class containing functionality needed for Pitch Determination Algorithm
 class PitchDeterminationAlgorithm(object):
+
+    # PitchDeterminationAlgorithm Enumerations
+
+    class ProcessingModes(Enum):
+        CPU  = 1
+        GPU  = 2
+
+    class InputSources(Enum):
+        FILE = 1
+        MIC  = 2
 
     # Public PitchDeterminationAlgorithm Members
 
@@ -102,77 +124,91 @@ class PitchDeterminationAlgorithm(object):
             self.__frame.pack(anchor=N, fill=X, expand=YES)
 
     ## Genralized class for toggle switched in the GUI.
-    class CommandSwitch(object):
-        DEFAULT_MODE=1              # default to GPU mode
+    class CommandSwitch(object, metaclass=Singleton):
+
+        # Constants
+        DEFAULT_COLOR='gray'
+        DEFAULT_MODE=1
 
         ## Constructor
-        def __init__(self, form, modes, default=DEFAULT_MODE, color=None):
-           self.__frame=Frame(form)
-           self.__switch = IntVar(form,self.DEFAULT_MODE)
-           for (text, mode) in modes.items():           # itterate thru modes
-                r = Radiobutton(master=self.__frame)      # parent widget
-                r.config(text=text)                     # button display text
-                r.config(variable=self.__switch)          # switch variable
-                r.config(value=mode)                    # value of switch
+        def __init__(self, form, modes, color=None, default=DEFAULT_MODE):
+            self.__frame=Frame(form)
+            self.__mode = IntVar(form, default)
+            for mode in modes:                           # itterate thru modes
+                r = Radiobutton(master=self.__frame)    # parent widget
+                r.config(text=mode.name)                # button display text
+                r.config(variable=self.__mode)          # switch variable
+                r.config(value=mode.value)              # value of switch
                 r.config(indicatoron=False)             # raised/sunken button
-                if color is not None: r.config(background=color) # set color
-                r.pack(side=LEFT)                       # next left within parent widget
-           self.__frame.pack(side=LEFT, padx=10)
+                r.config(background=color)              # set color
+                r.pack(side=LEFT)                       # next left in parent
+            self.__frame.pack(side=LEFT, padx=10)
+
+        @property
+        def mode(self):
+            return self.__mode
+
+        @mode.setter
+        def mode(self, value):
+            self.__mode = value
 
     ## Class for toggling between which type of process will handle calculations.
     class ProcessorSwitch(CommandSwitch):
-        MODES={"GPU":1,"CPU":2}
-        DEFAULT_MODE=1              # default to GPU mode
-        SWITCH_COLOR='light blue'
+        COLOR='cornflower blue'
 
         ## Constructor
         def __init__(self, form):
-            super().__init__(form=form, modes=self.MODES, default=self.DEFAULT_MODE, color=self.SWITCH_COLOR)
+            self.__modes=PitchDeterminationAlgorithm.ProcessingModes
+            super().__init__(form=form, modes=self.__modes, color=self.COLOR)
 
     ## Class for toggling between source for auditory data.
     class SourceSwitch(CommandSwitch):
-        MODES={"MIC":1,"FILE":2}
-        DEFAULT_MODE=2              # default to File mode
-        SWITCH_COLOR='pink'
+        COLOR='indian red'
 
         ## Constructor
         def __init__(self, form):
-            super().__init__(form=form, modes=self.MODES, default=self.DEFAULT_MODE, color=self.SWITCH_COLOR)
+            self.__modes=PitchDeterminationAlgorithm.InputSources
+            super().__init__(form=form, modes=self.__modes, color=self.COLOR)
 
     ## Class for selecting sound file.
     class FileBrowser(object):
 
-        # Public FileBrowser Members
+        # Constants
+        BUTTON_TEXT='Browse'
+        OPEN_TITLE='Select sound file'
+        FILE_TYPES=(("Wave files","*.wav"), 
+                    ("MP3 files","*.mp3"))
+
+        # Methods
 
         ## Constructor
         def __init__(self, form):
             self.__frame=Frame(form)
+            self.__sourceSwitch=PitchDeterminationAlgorithm.SourceSwitch()
+            self.__pitchTracker=PitchDeterminationAlgorithm.PitchTracker()
             self.__srcFile=StringVar()
             self.__prevSrcFile=None
             self.__entry=Entry(self.__frame, textvariable=self.__srcFile, justify=LEFT)
             self.__entry.bind("<Return>", self.__OnFileEntryClick)
             self.__entry.pack(side=LEFT, fill=X, expand=YES)
-            self.__button=Button(self.__frame, text="Browse", command=lambda:self.__loadFile())
+            self.__button=Button(self.__frame, text=self.BUTTON_TEXT, command=lambda:self.__loadFile())
             self.__button.pack(side=LEFT)
             self.__frame.pack(side=LEFT, padx=10, fill=X, expand=YES)
 
-        # Private FileBrowser Members
-
         ## Open dialog window for finding/select file.
         def __loadFile(self):
-            fileName=askopenfilename(title = "Select sound file",
-                filetypes = (("Wave files","*.wav"), 
-                             ("MP3 files","*.mp3")))
+            fileName=askopenfilename(title = self.OPEN_TITLE, filetypes = self.FILE_TYPES)
             self.__srcFile.set(fileName)
-            self.srcMode.set(self.INPUT_SOURCES.get('FILE'))
+            #self.__srcMode.set(PitchDeterminationAlgorithm.InputSources.FILE)
             #self.processSignals()
+            self.__sourceSwitch.mode = PitchDeterminationAlgorithm.InputSources.FILE
 
         ## Action when files has been selected.
         def __OnFileEntryClick(self, event):
             value=self.__srcFile.get().strip()
             changed = True if self.__prevSrcFile != value else False
             if changed:
-                self.srcMode.set(self.INPUT_SOURCES.get('FILE'))
+                self.__srcMode.set(PitchDeterminationAlgorithm.InputSources.FILE)
                 #self.processSignals()
             self.__prevSrcFile=value
 
@@ -293,14 +329,84 @@ class PitchDeterminationAlgorithm(object):
 
     ## Class to handle pitch processing
     #  This is a sigleton so that only one instance keeps processed data.
-    class PitchProcessor(object):
-        __instance = None
+    class PitchTracker(object, metaclass=Singleton):
 
-        ## Creates new object
-        def __new__(cls):
-            if cls.__instance is None:
-                cls.__instance = super(PitchProcessor, cls).__new__(cls)
-            return cls.__instance
+        # Methods
+
+        ## Constructor
+        def __init__(self):
+            self.__mode = PitchDeterminationAlgorithm.ProcessingModes.CPU
+            self.__data = None
+            self.__elapsedTime = 0.0
+            self.__pitch = None
+            self.__file = None
+
+        @property
+        def mode(self):
+            return self.__mode
+            
+        @mode.setter
+        def mode(self, values):
+            self.__mode = values
+
+        ## Sets the data to be processed
+        #  @param values: sound samples
+        def data(self, values):
+            self.__data = values
+
+        data = property(None, data)
+
+        def file(self, values):
+            self.__file = values
+            self.__loadFile()
+            self.__track()
+
+        file = property(None, file)
+
+        def track(self):
+            self.__elapsedTime = process_time()
+            self.__track()
+            self.__elapsedTime = process_time() - self.__elapsedTime
+
+        @property
+        def elapsedTime(self):
+            return self.__elapsedTime
+
+        @property
+        def pitch(self):
+            return self.__pitch
+
+        @property
+        def step(self):
+            return self.__step
+
+        @property
+        def spline(self):
+            return self.__spline
+
+        def __loadFile(self):
+            if not os.path.isfile(self.__file):
+               return
+            raw = wave.open(self.__file, "r")
+            if raw.getnchannels() == 2:
+                return
+            signal = spf.readframes(-1)
+            self.__data = np.frombuffer(signal, dtype='int16')
+            raw.close()
+
+        def __track(self):
+            self.__pitch = pitch
+            self.__stepInterp = pitch.set_values(pitch.samp_values, len(pitch.values), interp_tech='step')
+            self.__splineInterp = pitch.set_values(pitch.samp_values, len(pitch.values), interp_tech='spline')
+
+        def __getTrackedPitch(self):
+            if true:
+                basicSignal = basic.SignalObj(self.__data, self.__rate)
+                pitch = pYAAPT.yaapt(self.__basicSignal)
+            else:
+                basicSignal = basic.SignalObj(self.__data, self.__rate)
+                pitch = pYAAPT.yaapt(self.__basicSignal)
+            return pitch
 
 ###################################
 ### Designated Start of Program ###
