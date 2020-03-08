@@ -264,10 +264,6 @@ class PDA(object):
             self.__frame.pack(fill=tk.X)
             self.__frame.pack(expand=tk.YES)
 
-        @property
-        def entryFile(self):
-            return self.__entryFile
-
         def plotsWidget(self,widget):
             self.__plots=widget
 
