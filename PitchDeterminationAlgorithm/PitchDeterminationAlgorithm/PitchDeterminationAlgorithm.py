@@ -12,7 +12,7 @@
 #==============================================================================
 
 #import time
-#from time import process_time
+from time import process_time
 #import importlib
 import tkinter as tk
 #from tkinter import messagebox
@@ -82,8 +82,8 @@ class PDA(object):
             self.__command=PDA.CommandForm(self.__window)
             self.__plots=PDA.PdaPlots(self.__window)
             self.__elapsed=PDA.ElapsedTime(self.__window)
-            self.__command.plots(self.__plots)
-
+            self.__command.plotsWidget=self.__plots    
+            self.__command.elapsedTimeWidget=self.__elapsed
 
         ## Activates the GUI
         def run(self):
@@ -122,8 +122,15 @@ class PDA(object):
             self.__fileBrowser = PDA.FileBrowser(self.__frame)
             self.__frame.pack(anchor=tk.N, fill=tk.X, expand=tk.YES)
 
-        def plots(self,instance):
-            self.__fileBrowser.plots(instance)
+        def plotsWidget(self,widget):
+            self.__fileBrowser.plotsWidget=widget
+
+        plotsWidget=property(None,plotsWidget)
+
+        def elapsedTimeWidget(self,widget):
+            self.__fileBrowser.elapsedTimeWidget=widget
+
+        elapsedTimeWidget=property(None,elapsedTimeWidget)
 
     ### PDA.CommandSwitch ###
 
@@ -200,7 +207,8 @@ class PDA(object):
             self.__frame=tk.Frame(form)
             self.__sourceSwitch=PDA.SourceSwitch()
             self.__pitchTracker=PDA.PitchTracker()
-            self.__plots=None
+            self.__plotsWidget=None
+            self.__elaspedTimeWidget=None
             self.__file=None
             self.__entryFile=tk.StringVar()
             self.__entry=tk.Entry(self.__frame, textvariable=self.__entryFile, justify=tk.LEFT)
@@ -210,8 +218,15 @@ class PDA(object):
             self.__button.pack(side=tk.LEFT)
             self.__frame.pack(side=tk.LEFT, padx=10, fill=tk.X, expand=tk.YES)
 
-        def plots(self,instance):
-            self.__plots=instance
+        def plotsWidget(self,widget):
+            self.__plotsWidget=widget
+
+        plotsWidget=property(None,plotsWidget)
+
+        def elapsedTimeWidget(self,widget):
+            self.__elapsedTimeWidget=widget
+
+        elapsedTimeWidget=property(None,elapsedTimeWidget)
 
         ## Open dialog window for finding/select file.
         def __loadFile(self):
@@ -228,14 +243,18 @@ class PDA(object):
         def __processFile(self, value):
             self.__file=value
             self.__pitchTracker.file = self.__file
+            self.__pitchTracker.track()
             self.__sourceSwitch.mode = PDA.InputSources.FILE
             self.__updatePlots()
+            self.__updateElapsedTime(self.__pitchTracker.elapsedTime)
 
         def __updatePlots(self):
-            if self.__plots is None:
-                tk.messagebox.showerror('Error','No Form for Plots was loaded')
-            else:
-                self.__plots.update()
+            if self.__plotsWidget is not None:
+                self.__plotsWidget.update()
+
+        def __updateElapsedTime(self,elapsedTime):
+            if self.__elapsedTimeWidget is not None:
+                self.__elapsedTimeWidget.time=str(elapsedTime)
 
 
     ### PDA.MagnitudePlot ###
@@ -418,7 +437,6 @@ class PDA(object):
         def file(self, file):
             self.__file = file
             self.__loadFile()
-            self.__track()
 
         file = property(None, file)
 
