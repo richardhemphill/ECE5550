@@ -164,7 +164,7 @@ class PDA(object):
                      default=MODE):
             self.__frame=tk.Frame(form)
             self.__mode = tk.IntVar(form, default)
-            self.__buttons=list()
+            self.buttons=dict()
             for mode in modes:                          # itterate thru modes
                 button = tk.Radiobutton(master=self.__frame)    # parent widget
                 button.config(text=mode.name)                   # button  text
@@ -173,7 +173,7 @@ class PDA(object):
                 button.config(indicatoron=False)                # raised/sunken
                 button.config(background=color)                 # set color
                 button.pack(side=tk.LEFT)                       # next left
-                self.__buttons.append(button)                   # btn container
+                self.buttons.update({mode.name: button})                     # btn container
             self.__frame.pack(side=tk.LEFT)
             self.__frame.pack(padx=10)
 
@@ -213,11 +213,20 @@ class PDA(object):
         def __init__(self, 
                      form):
             self.__modes=PDA.InputSources
-            self.__pitchTracker=PDA.PitchTracker
             super().__init__(form=form, 
                              modes=self.__modes, 
                              color=self.COLOR)
+            self.__setCommand()
 
+        def __setCommand(self):
+            self.buttons[PDA.InputSources.FILE.name].config(command=self.__processFile)
+            self.buttons[PDA.InputSources.MIC.name].config(command=self.__processMic)
+
+        def __processFile(self):
+            tk.messagebox.showinfo('Information','File was pressed')
+
+        def __processMic(self):
+            tk.messagebox.showinfo('Information','Mic was pressed')
 
     ### PDA.FileBrowser ###
 
@@ -315,10 +324,8 @@ class PDA(object):
                      plt, 
                      pos):
             self.__plt = plt.add_subplot(pos)
-            self.__plt.set_xlabel(self.XLABEL) 
-            self.__plt.set_xlabel(fontsize=self.FONTSIZE)
-            self.__plt.set_ylabel(self.YLABEL)
-            self.__plt.set_ylabel(fontsize=self.FONTSIZE)
+            self.__plt.set_xlabel(self.XLABEL, fontsize=self.FONTSIZE)
+            self.__plt.set_ylabel(self.YLABEL, fontsize=self.FONTSIZE)
             self.__pitchTracker=PDA.PitchTracker()
 
         def update(self):
@@ -520,10 +527,8 @@ class PDA(object):
     ## Class to handle pitch processing
     #  This is a sigleton so that only one instance keeps processed data.
     class PitchTracker(object, metaclass=Singleton):
-        
-        # Constants
-
         RATE=4800
+        DTYPE='int16'
 
         # Methods
 
@@ -558,7 +563,7 @@ class PDA(object):
         #  @param values: sound samples
         @data.setter
         def data(self, values):
-            self.__data = values
+            self.__setData(values)
 
         def file(self, file):
             self.__file = file
@@ -599,10 +604,10 @@ class PDA(object):
         def __setData(self, signal):
             if self.__mode == PDA.ProcessingModes.CPU:
                 self.__data = np.frombuffer(signal, 
-                                            dtype='int16')
+                                            dtype=self.DTYPE)
             else:
                 self.__data = cp.frombuffer(signal, 
-                                            dtype='int16')
+                                            dtype=self.DTYPE)
 
         def __track(self):
             if self.__mode == PDA.ProcessingModes.CPU:
