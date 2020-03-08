@@ -145,14 +145,16 @@ class PDA(object):
         def __init__(self, form, modes, color=None, default=DEFAULT_MODE):
             self.__frame=tk.Frame(form)
             self.__mode = tk.IntVar(form, default)
+            self.__buttons=list()
             for mode in modes:                          # itterate thru modes
-                r = tk.Radiobutton(master=self.__frame) # parent widget
-                r.config(text=mode.name)                # button display text
-                r.config(variable=self.__mode)          # switch variable
-                r.config(value=mode.value)              # value of switch
-                r.config(indicatoron=False)             # raised/sunken button
-                r.config(background=color)              # set color
-                r.pack(side=tk.LEFT)                    # next left in parent
+                button = tk.Radiobutton(master=self.__frame) # parent widget
+                button.config(text=mode.name)                # button display text
+                button.config(variable=self.__mode)          # switch variable
+                button.config(value=mode.value)              # value of switch
+                button.config(indicatoron=False)             # raised/sunken button
+                button.config(background=color)              # set color
+                button.pack(side=tk.LEFT)                    # next left in parent
+                self.__buttons.append(button)
             self.__frame.pack(side=tk.LEFT, padx=10)
 
         @property
@@ -244,7 +246,7 @@ class PDA(object):
             self.__file=value
             self.__pitchTracker.file = self.__file
             self.__pitchTracker.track()
-            self.__sourceSwitch.mode = PDA.InputSources.FILE
+            self.__sourceSwitch.mode = PDA.InputSources.FILE.value
             self.__updatePlots()
             self.__updateElapsedTime(self.__pitchTracker.elapsedTime)
 
