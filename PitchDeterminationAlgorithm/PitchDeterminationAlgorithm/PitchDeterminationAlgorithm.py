@@ -106,7 +106,8 @@ class PDA(object):
             windowHeight=int(screenHeight*self.SCREEN_PERCENT)
 
             # format to string that for geometry call
-            return "{}x{}".format(windowWidth,windowHeight)
+            return "{}x{}".format(windowWidth,
+                                  windowHeight)
 
 
     ### PDA.CommandForm ###
@@ -120,7 +121,9 @@ class PDA(object):
             self.__processorSwitch = PDA.ProcessorSwitch(self.__frame)
             self.__sourceSwitch = PDA.SourceSwitch(self.__frame)
             self.__fileBrowser = PDA.FileBrowser(self.__frame)
-            self.__frame.pack(anchor=tk.N, fill=tk.X, expand=tk.YES)
+            self.__frame.pack(anchor=tk.N, 
+                              fill=tk.X, 
+                              expand=tk.YES)
 
         def plotsWidget(self,widget):
             self.__fileBrowser.plotsWidget=widget
@@ -147,15 +150,16 @@ class PDA(object):
             self.__mode = tk.IntVar(form, default)
             self.__buttons=list()
             for mode in modes:                          # itterate thru modes
-                button = tk.Radiobutton(master=self.__frame) # parent widget
-                button.config(text=mode.name)                # button display text
-                button.config(variable=self.__mode)          # switch variable
-                button.config(value=mode.value)              # value of switch
-                button.config(indicatoron=False)             # raised/sunken button
-                button.config(background=color)              # set color
-                button.pack(side=tk.LEFT)                    # next left in parent
-                self.__buttons.append(button)
-            self.__frame.pack(side=tk.LEFT, padx=10)
+                button = tk.Radiobutton(master=self.__frame)    # parent widget
+                button.config(text=mode.name)                   # button  text
+                button.config(variable=self.__mode)             # switch var
+                button.config(value=mode.value)                 # switch value
+                button.config(indicatoron=False)                # raised/sunken
+                button.config(background=color)                 # set color
+                button.pack(side=tk.LEFT)                       # next left
+                self.__buttons.append(button)                   # btn container
+            self.__frame.pack(side=tk.LEFT, 
+                              padx=10)
 
         @property
         def mode(self):
@@ -168,7 +172,7 @@ class PDA(object):
 
     ### PDA.ProcessorSwitch ###
 
-    ## Class for toggling between which type of process will handle calculations.
+    ## Class for toggling processor to handle calculations.
     #  Parent class for switches used in GUI
     class ProcessorSwitch(CommandSwitch):
         COLOR='cornflower blue'
@@ -176,7 +180,9 @@ class PDA(object):
         ## Constructor
         def __init__(self, form):
             self.__modes=PDA.ProcessingModes
-            super().__init__(form=form, modes=self.__modes, color=self.COLOR)
+            super().__init__(form=form, 
+                             modes=self.__modes, 
+                             color=self.COLOR)
 
 
     ### PDA.SourceSwitch ###
@@ -188,7 +194,9 @@ class PDA(object):
         ## Constructor
         def __init__(self, form):
             self.__modes=PDA.InputSources
-            super().__init__(form=form, modes=self.__modes, color=self.COLOR)
+            super().__init__(form=form, 
+                             modes=self.__modes, 
+                             color=self.COLOR)
 
 
     ### PDA.FileBrowser ###
@@ -213,12 +221,21 @@ class PDA(object):
             self.__elaspedTimeWidget=None
             self.__file=None
             self.__entryFile=tk.StringVar()
-            self.__entry=tk.Entry(self.__frame, textvariable=self.__entryFile, justify=tk.LEFT)
+            self.__entry=tk.Entry(self.__frame, 
+                                  textvariable=self.__entryFile, 
+                                  justify=tk.LEFT)
             self.__entry.bind("<Return>", self.__OnFileEntryClick)
-            self.__entry.pack(side=tk.LEFT, fill=tk.X, expand=tk.YES)
-            self.__button=tk.Button(self.__frame, text=self.BUTTON_TEXT, command=lambda:self.__loadFile())
+            self.__entry.pack(side=tk.LEFT, 
+                              fill=tk.X, 
+                              expand=tk.YES)
+            self.__button=tk.Button(self.__frame, 
+                                    text=self.BUTTON_TEXT, 
+                                    command=lambda:self.__loadFile())
             self.__button.pack(side=tk.LEFT)
-            self.__frame.pack(side=tk.LEFT, padx=10, fill=tk.X, expand=tk.YES)
+            self.__frame.pack(side=tk.LEFT, 
+                              padx=10, 
+                              fill=tk.X, 
+                              expand=tk.YES)
 
         def plotsWidget(self,widget):
             self.__plotsWidget=widget
@@ -232,7 +249,8 @@ class PDA(object):
 
         ## Open dialog window for finding/select file.
         def __loadFile(self):
-            value=askopenfilename(title = self.OPEN_TITLE, filetypes = self.FILE_TYPES)
+            value=askopenfilename(title = self.OPEN_TITLE, 
+                                  filetypes = self.FILE_TYPES)
             self.__processFile(value)
 
         ## Action when files has been selected.
@@ -268,8 +286,10 @@ class PDA(object):
 
         def __init__(self, plt, pos):
             self.__plt = plt.add_subplot(pos)
-            self.__plt.set_xlabel(self.XLABEL_STR, fontsize=self.LABEL_FONTSIZE)
-            self.__plt.set_ylabel(self.YLABEL_STR, fontsize=self.LABEL_FONTSIZE)
+            self.__plt.set_xlabel(self.XLABEL_STR, 
+                                  fontsize=self.LABEL_FONTSIZE)
+            self.__plt.set_ylabel(self.YLABEL_STR, 
+                                  fontsize=self.LABEL_FONTSIZE)
             self.__pitchTracker=PDA.PitchTracker()
 
         def update(self):
@@ -289,10 +309,13 @@ class PDA(object):
         AUTOSCALE_AXIS = 'x'
         AUTOSCALE_TIGHT = True
 
-        def __init__(self, plt, pos, rate=44100, nttf=1024, noverlap=900, cmap='gray_r'):
+        def __init__(self, plt, pos, rate=44100, nttf=1024, noverlap=900, 
+                     cmap='gray_r'):
             self.__plt = plt.add_subplot(pos)
-            self.__plt.set_xlabel(self.XLABEL_STR, fontsize=self.LABEL_FONTSIZE)
-            self.__plt.set_ylabel(self.YLABEL_STR, fontsize=self.LABEL_FONTSIZE)
+            self.__plt.set_xlabel(self.XLABEL_STR, 
+                                  fontsize=self.LABEL_FONTSIZE)
+            self.__plt.set_ylabel(self.YLABEL_STR, 
+                                  fontsize=self.LABEL_FONTSIZE)
             self.__rate = rate
             self.__nttf = nttf
             self.__noverlap = noverlap
@@ -300,8 +323,14 @@ class PDA(object):
             self.__pitchTracker=PDA.PitchTracker()
 
         def update(self):
-            self.__plt.specgram(self.__pitchTracker.data, NFFT=self.__nttf, Fs=self.__rate, noverlap=self.__noverlap, cmap=self.__cmap)
-            self.__plt.autoscale(enable=self.AUTOSCALE_ENABLE, axis=self.AUTOSCALE_AXIS, tight=self.AUTOSCALE_TIGHT)
+            self.__plt.specgram(self.__pitchTracker.data, 
+                                NFFT=self.__nttf, 
+                                Fs=self.__rate, 
+                                noverlap=self.__noverlap, 
+                                cmap=self.__cmap)
+            self.__plt.autoscale(enable=self.AUTOSCALE_ENABLE, 
+                                 axis=self.AUTOSCALE_AXIS, 
+                                 tight=self.AUTOSCALE_TIGHT)
 
 
     ### PDA.PitchPlot ###
@@ -323,8 +352,10 @@ class PDA(object):
 
         def __init__(self, plt, pos):
             self.__plt = plt.add_subplot(pos)
-            self.__plt.set_xlabel(xlabel=self.XLABEL, fontsize=self.FONTSIZE)
-            self.__plt.set_ylabel(ylabel=self.YLABEL, fontsize=self.FONTSIZE)
+            self.__plt.set_xlabel(xlabel=self.XLABEL, 
+                                  fontsize=self.FONTSIZE)
+            self.__plt.set_ylabel(ylabel=self.YLABEL, 
+                                  fontsize=self.FONTSIZE)
             self.__pitchTracker=PDA.PitchTracker()
 
         def update(self):
@@ -333,12 +364,20 @@ class PDA(object):
             self.__plt.legend(loc=self.LEGEND_LOC)
             self.__plt.grid
             self.__plt.axes.set_ylim([0,1000])
-            self.__plt.autoscale(enable=self.ENABLE, axis=self.AXIS, tight=self.TIGHT)
+            self.__plt.autoscale(enable=self.ENABLE, 
+                                 axis=self.AXIS, 
+                                 tight=self.TIGHT)
 
         def __plot(self):
-            self.__plt.plot(self.__pitchTracker.pitch, label=self.PITCH_LABEL, color=self.PITCH_COLOR)
-            self.__plt.plot(self.__pitchTracker.step, label=self.STEP_LABEL, color=self.STEP_COLOR)
-            self.__plt.plot(self.__pitchTracker.spline, label=self.SPLINE_LABEL, color=self.SPLINE_COLOR)
+            self.__plt.plot(self.__pitchTracker.pitch, 
+                            label=self.PITCH_LABEL, 
+                            color=self.PITCH_COLOR)
+            self.__plt.plot(self.__pitchTracker.step, 
+                            label=self.STEP_LABEL, 
+                            color=self.STEP_COLOR)
+            self.__plt.plot(self.__pitchTracker.spline, 
+                            label=self.SPLINE_LABEL, 
+                            color=self.SPLINE_COLOR)
 
     ### PDA.PdaPlots ###
 
@@ -351,20 +390,26 @@ class PDA(object):
 
         def __init__(self, win):
             self.__frame=tk.Frame(win)
-            self.__frame.pack(anchor=tk.CENTER, fill=tk.BOTH, expand=tk.YES)
+            self.__frame.pack(anchor=tk.CENTER, 
+                              fill=tk.BOTH, 
+                              expand=tk.YES)
             self.__plt=Figure()
-            self.__plt.suptitle(self.TITLE_STR, fontsize=self.TITLE_FONTSIZE)
+            self.__plt.suptitle(self.TITLE_STR, 
+                                fontsize=self.TITLE_FONTSIZE)
             self.__subPlots = list()
             self.__subPlots.append(PDA.MagnitudePlot(self.__plt,self.__pos))
             self.__subPlots.append(PDA.FrequencyPlot(self.__plt,self.__pos))
             self.__subPlots.append(PDA.PitchPlot(self.__plt,self.__pos))
-            self.__canvas = FigureCanvasTkAgg(self.__plt, master=self.__frame)
+            self.__canvas = FigureCanvasTkAgg(self.__plt, 
+                                              master=self.__frame)
 
         def update(self):
             for plt in self.__subPlots:
                 plt.update()
             self.__canvas.draw()
-            self.__canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=1)
+            self.__canvas.get_tk_widget().pack(side=tk.TOP, 
+                                               fill=tk.BOTH, 
+                                               expand=1)
 
         @property
         def __pos(self):
@@ -383,13 +428,17 @@ class PDA(object):
 
         def __init__(self, win):
             self.__frame=tk.Frame(win)
-            self.__lUnit=tk.Label(self.__frame,text=self.UNIT)
+            self.__lUnit=tk.Label(self.__frame,
+                                  text=self.UNIT)
             self.__lUnit.pack(side=tk.RIGHT)
             self.__time=tk.StringVar()
             self.__time.set(self.DEFAULT)
-            self.__lValue=tk.Label(self.__frame, textvariable=self.__time)
+            self.__lValue=tk.Label(self.__frame, 
+                                   textvariable=self.__time)
             self.__lValue.pack(side=tk.RIGHT)
-            self.__frame.pack(anchor=tk.SE, fill=tk.X, expand=tk.YES)
+            self.__frame.pack(anchor=tk.SE, 
+                              fill=tk.X, 
+                              expand=tk.YES)
 
         def time(self, value):
             self.__time.set(value)
@@ -475,9 +524,11 @@ class PDA(object):
 
         def __setData(self, signal):
             if self.__mode == PDA.ProcessingModes.CPU:
-                self.__data = np.frombuffer(signal, dtype='int16')
+                self.__data = np.frombuffer(signal, 
+                                            dtype='int16')
             else:
-                self.__data = cp.frombuffer(signal, dtype='int16')
+                self.__data = cp.frombuffer(signal, 
+                                            dtype='int16')
 
         def __track(self):
             if self.__mode == PDA.ProcessingModes.CPU:
@@ -487,9 +538,13 @@ class PDA(object):
                 basicSignal = basic_cuda.SignalObj(self.__data, self.RATE)
                 pitch = pYAAPT_cuda.yaapt(basicSignal)
             self.__pitch = pitch.values
-            pitch.set_values(pitch.samp_values, len(pitch.values), interp_tech='step')
+            pitch.set_values(pitch.samp_values, 
+                             len(pitch.values), 
+                             interp_tech='step')
             self.__step = pitch.values
-            pitch.set_values(pitch.samp_values, len(pitch.values), interp_tech='spline')
+            pitch.set_values(pitch.samp_values, 
+                             len(pitch.values), 
+                             interp_tech='spline')
             self.__spline = pitch.values
 
 ###################################
