@@ -11,7 +11,7 @@
 #   user to demonstrate GPU vs CPU performance.
 #==============================================================================
 
-#import time
+import time
 from time import process_time
 #import importlib
 import tkinter as tk
@@ -30,7 +30,7 @@ import cupy as cp
 import wave
 #import sys
 import os
-#import pyaudio
+import pyaudio
 from enum import Enum
 
 # Types
@@ -135,9 +135,10 @@ class PDA(object):
             self.__frame.pack(fill=tk.X)
             self.__frame.pack(expand=tk.YES)
 
-        def plots(self,widget):
-            self.__plots=widget
-            self.__fileBrowser.plotsWidget=widget
+        def plots(self,plots):
+            self.__plots=plots
+            self.__fileBrowser.plots=plots
+            self.__sourceSwitch.plots=plots
             self.__plots.source=self.__sourceSwitch
 
         plots=property(None,plots)
@@ -174,7 +175,7 @@ class PDA(object):
 
         @property
         def mode(self):
-            return self.__mode
+            return self.__mode.get()
 
         @mode.setter
         def mode(self, value):
@@ -211,19 +212,17 @@ class PDA(object):
             super().__init__(form=form, 
                              modes=self.__modes, 
                              color=self.COLOR)
+
+        def plots(self, plots):
+            self.__plots = plots
             self.__setCommands()
 
-
+        plots = property(None, plots)
 
         def __setCommands(self):
-            self.buttons[PDA.InputSources.FILE.name].config(command=self.__processFile)
-            self.buttons[PDA.InputSources.MIC.name].config(command=self.__processMic)
+            self.buttons[PDA.InputSources.FILE.name].config(command=self.__plots.processFile)
+            self.buttons[PDA.InputSources.MIC.name].config(command=self.__plots.processMic)
 
-        def __processFile(self):
-            tk.messagebox.showinfo('Information','File was pressed')
-
-        def __processMic(self):
-            tk.messagebox.showinfo('Information','Mic was pressed')
 
     ### PDA.FileBrowser ###
 
@@ -264,10 +263,10 @@ class PDA(object):
             self.__frame.pack(fill=tk.X)
             self.__frame.pack(expand=tk.YES)
 
-        def plotsWidget(self,widget):
+        def plots(self,widget):
             self.__plots=widget
 
-        plotsWidget=property(None,plotsWidget)
+        plots=property(None,plots)
 
         ## Open dialog window for finding/select file.
         def __loadFile(self):
@@ -420,6 +419,11 @@ class PDA(object):
         PLOTS = 3
         HORIZ = True
         PLOT_NUM = 0
+        FORMAT=pyaudio.paInt16
+        RATE = 4800                     # record at samples/second
+        CHUNK = 1600                    # number of samples to process
+        PERIOD=CHUNK/RATE               # period of chunks
+        CHANNELS=1
 
         def __init__(self, win):
             self.__frame=tk.Frame(win)
@@ -436,9 +440,29 @@ class PDA(object):
             self.__canvas = FigureCanvasTkAgg(self.__plt, 
                                               master=self.__frame)
             self.__pitchTracker=PDA.PitchTracker()
+            self.__file=None
 
         def update(self):
             self.__update()
+
+        def processFile(self):
+            if self.__file is not None:
+                self.__pitchTracker.file = self.__file
+                self.__update()
+
+        def processMic(self):
+            audio=pyaudio.PyAudio()
+            stream=audio.open(format=self.FORMAT,
+                              channels=self.CHANNELS,
+                              rate=self.RATE,
+                              input=True,
+                              frames_per_buffer=self.CHUNK)
+            while self.__source.mode == PDA.InputSources.MIC.value:
+                data=stream.read(self.CHUNK)
+                if len(data) >= self.CHUNK:
+                    self.__pitchTracker.data=data
+                    self.__update(self.RATE)
+                time.sleep(self.PERIOD)
 
         def file(self, file):
             if os.path.isfile(file):
@@ -465,18 +489,13 @@ class PDA(object):
                 pos = '{}{}{}'.format(self.PLOTS,self.PLOT_NUM,1)
             return int(pos)
 
-        def __processFile(self):
-            if self.__source.mode is not None:
-                self.__source.mode = PDA.InputSources.FILE.value
-            self.__pitchTracker.file = self.__file
-            self.__update()
-
-        def __update(self):
-            self.__pitchTracker.track()
+        def __update(self, rate=RATE):
+            self.__pitchTracker.track(rate)
             self.__updateElapsedTime(self.__pitchTracker.elapsedTime)
             for plt in self.__subPlots:
                 plt.update()
             self.__canvas.draw()
+            pass
             self.__canvas.get_tk_widget().pack(side=tk.TOP, 
                                                fill=tk.BOTH, 
                                                expand=1)
@@ -529,8 +548,10 @@ class PDA(object):
             self.__pitch = None
             self.__step = None
             self.__spline = None
+            self.__rate=self.RATE
 
-        def track(self):
+        def track(self, rate=RATE):
+            self.__rate=rate
             self.__elapsedTime = process_time()
             self.__track()
             self.__elapsedTime = process_time() - self.__elapsedTime
@@ -540,8 +561,8 @@ class PDA(object):
             return self.__mode
             
         @mode.setter
-        def mode(self, values):
-            self.__mode = values
+        def mode(self, mode):
+            self.__mode = mode
 
         @property
         def data(self):
@@ -587,22 +608,20 @@ class PDA(object):
                 return
             signal = raw.readframes(-1)
             self.__setData(signal)
+            self.__rate = raw.getframerate()
             raw.close()
 
         def __setData(self, signal):
-            if self.__mode == PDA.ProcessingModes.CPU:
-                self.__data = np.frombuffer(signal, 
-                                            dtype=self.DTYPE)
-            else:
-                self.__data = cp.frombuffer(signal, 
-                                            dtype=self.DTYPE)
+            self.__data = np.frombuffer(signal, 
+                                        dtype=self.DTYPE)
+
 
         def __track(self):
-            if self.__mode == PDA.ProcessingModes.CPU:
-                basicSignal = basic.SignalObj(self.__data, self.RATE)
+            if self.__mode == PDA.ProcessingModes.CPU.value:
+                basicSignal = basic.SignalObj(self.__data, self.__rate)
                 pitch = pYAAPT.yaapt(basicSignal)
             else:
-                basicSignal = basic_cuda.SignalObj(self.__data, self.RATE)
+                basicSignal = basic_cuda.SignalObj(self.__data, self.__rate)
                 pitch = pYAAPT_cuda.yaapt(basicSignal)
 
             self.__pitch = pitch.values
