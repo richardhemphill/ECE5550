@@ -80,7 +80,7 @@ class PDA(object):
     class GUI(object):
         # Constants
         TITLE='Pitch Determination Algorithm'   # window title
-        SCREEN_PERCENT=0.75                     # use 75% screen width and height
+        SCREEN_PERCENT=0.6                      # percent of screen width and height
 
         # Public GUI Methods
 
@@ -289,9 +289,9 @@ class PDA(object):
 
         def update(self):
             self.__plt.clear()
-            self.__plt.plot(self._pitchTracker.pitch, label=self.PITCH_LABEL, color=self.PITCH_COLOR)
-            self.__plt.plot(self._pitchTracker.step, label=self.STEP_LABEL, color=self.STEP_COLOR)
-            self.__plt.plot(self._pitchTracker.spline, label=self.SPLINE_LABEL, color=self.SPLINE_COLOR)
+            self.__plt.plot(self.__pitchTracker.pitch, label=self.PITCH_LABEL, color=self.PITCH_COLOR)
+            self.__plt.plot(self.__pitchTracker.step, label=self.STEP_LABEL, color=self.STEP_COLOR)
+            self.__plt.plot(self.__pitchTracker.spline, label=self.SPLINE_LABEL, color=self.SPLINE_COLOR)
             self.__plt.legend(loc=self.LEGEND_LOC)
             self.__plt.grid
             self.__plt.axes.set_ylim([0,1000])
@@ -307,17 +307,16 @@ class PDA(object):
             self.__plt=Figure()
             self.__plt.suptitle(self.TITLE_STR, fontsize=self.TITLE_FONTSIZE)
             self.__subPlots = list()
-            self.__mPlt = PDA.MagnitudePlot(self.__plt)
-            self.__subPlots.append(self.__mPlt)
-            self.__fPlt = PDA.FrequencyPlot(self.__plt)
-            self.__subPlots.append(self.__fPlt)
-            self.__pPlt = PDA.PitchPlot(self.__plt)
-            self.__subPlots.append(self.__pPlt)
+            self.__subPlots.append(PDA.MagnitudePlot(self.__plt))
+            self.__subPlots.append(PDA.FrequencyPlot(self.__plt))
+            self.__subPlots.append(PDA.PitchPlot(self.__plt))
             self.__canvas = FigureCanvasTkAgg(self.__plt, master=self.__frame)
 
         def update(self):
             for plt in self.__subPlots:
                 plt.update()
+            self.__canvas.draw()
+            self.__canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=1)
 
     class CpuPlots(PdaPlots):
         def __init__(self, frame):
@@ -342,10 +341,12 @@ class PDA(object):
         ## Constructor
         def __init__(self):
             self.__mode = PDA.ProcessingModes.CPU
+            self.__file = None
             self.__data = None
             self.__elapsedTime = 0.0
             self.__pitch = None
-            self.__file = None
+            self.__step = None
+            self.__spline = None
 
         @property
         def mode(self):
@@ -415,10 +416,12 @@ class PDA(object):
                 pitch = pYAAPT.yaapt(basicSignal)
             else:
                 basicSignal = basic_cuda.SignalObj(self.__data, self.RATE)
-                self.__pitch = pYAAPT_cuda.yaapt(basicSignal)
-            self.__pitch = pitch
-            self.__stepInterp = pitch.set_values(pitch.samp_values, len(pitch.values), interp_tech='step')
-            self.__splineInterp = pitch.set_values(pitch.samp_values, len(pitch.values), interp_tech='spline')
+                pitch = pYAAPT_cuda.yaapt(basicSignal)
+            self.__pitch = pitch.values
+            pitch.set_values(pitch.samp_values, len(pitch.values), interp_tech='step')
+            self.__step = pitch.values
+            pitch.set_values(pitch.samp_values, len(pitch.values), interp_tech='spline')
+            self.__spline = pitch.values
 
 ###################################
 ### Designated Start of Program ###
