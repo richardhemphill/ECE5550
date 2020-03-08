@@ -50,8 +50,6 @@ class Singleton(type):
 ## Class containing functionality needed for Pitch Determination Algorithm
 class PDA(object):
 
-    # Types
-
     class ProcessingModes(Enum):
         CPU  = 1
         GPU  = 2
@@ -59,8 +57,6 @@ class PDA(object):
     class InputSources(Enum):
         FILE = 1
         MIC  = 2
-
-    # Members
 
     ## Constructor
     def __init__(self):
@@ -70,19 +66,14 @@ class PDA(object):
     def run(self):
         self.__gui.run()
 
-    #####################
-    ### Inner Classes ###
-    #####################
 
-    ### GUI Classes ###
+    ### PDA.GUI ###
 
     ## Class that sets up and manages the graphical interface.
     class GUI(object):
         # Constants
         TITLE='Pitch Determination Algorithm'   # window title
-        SCREEN_PERCENT=0.6                      # percent of screen width and height
-
-        # Public GUI Methods
+        SCREEN_PERCENT=0.5                      # percent of screen height/width
 
         ## Constructor
         def __init__(self):
@@ -90,12 +81,11 @@ class PDA(object):
             self.__configureWindow()
             self.__commandForm=PDA.CommandForm(self.__window)
             self.__pdaPlots=PDA.PdaPlots(self.__window)
+            self.__elapsedTime=PDA.ElapsedTime(self.__window)
 
         ## Activates the GUI
         def run(self):
             self.__window.mainloop()
-
-        # Private GUI Members
 
         ## Initializes the look of the GUI
         def __configureWindow(self):
@@ -116,6 +106,9 @@ class PDA(object):
             # format to string that for geometry call
             return "{}x{}".format(windowWidth,windowHeight)
 
+
+    ### PDA.CommandForm ###
+
     ## Class that manages the window form for controlling the GUI.
     class CommandForm(object):
 
@@ -126,6 +119,9 @@ class PDA(object):
             self.__sourceSwitch = PDA.SourceSwitch(self.__frame)
             self.__fileBrowser = PDA.FileBrowser(self.__frame)
             self.__frame.pack(anchor=tk.N, fill=tk.X, expand=tk.YES)
+
+
+    ### PDA.CommandSwitch ###
 
     ## Genralized class for toggle switched in the GUI.
     class CommandSwitch(object, metaclass=Singleton):
@@ -156,7 +152,11 @@ class PDA(object):
         def mode(self, value):
             self.__mode.set(value)
 
+
+    ### PDA.ProcessorSwitch ###
+
     ## Class for toggling between which type of process will handle calculations.
+    #  Parent class for switches used in GUI
     class ProcessorSwitch(CommandSwitch):
         COLOR='cornflower blue'
 
@@ -164,6 +164,9 @@ class PDA(object):
         def __init__(self, form):
             self.__modes=PDA.ProcessingModes
             super().__init__(form=form, modes=self.__modes, color=self.COLOR)
+
+
+    ### PDA.SourceSwitch ###
 
     ## Class for toggling between source for auditory data.
     class SourceSwitch(CommandSwitch):
@@ -173,6 +176,9 @@ class PDA(object):
         def __init__(self, form):
             self.__modes=PDA.InputSources
             super().__init__(form=form, modes=self.__modes, color=self.COLOR)
+
+
+    ### PDA.FileBrowser ###
 
     ## Class for selecting sound file.
     class FileBrowser(object):
@@ -226,13 +232,16 @@ class PDA(object):
             else:
                 self.__pdaPlots.update()
 
+
+    ### PDA.MagnitudePlot ###
+
     class MagnitudePlot(object):
         XLABEL_STR = 'Samples'
         YLABEL_STR = 'Magnitude'
         LABEL_FONTSIZE = 12
 
-        def __init__(self, plt):
-            self.__plt = plt.add_subplot(311)
+        def __init__(self, plt, pos):
+            self.__plt = plt.add_subplot(pos)
             self.__plt.set_xlabel(self.XLABEL_STR, fontsize=self.LABEL_FONTSIZE)
             self.__plt.set_ylabel(self.YLABEL_STR, fontsize=self.LABEL_FONTSIZE)
             self.__pitchTracker=PDA.PitchTracker()
@@ -243,6 +252,9 @@ class PDA(object):
             self.__plt.plot(data)
             self.__plt.axis([0,len(data),-2**16/2,2**16/2])
 
+
+    ### PDA.FrequencyPlot ###
+
     class FrequencyPlot(object):
         XLABEL_STR = 'Time'
         YLABEL_STR = 'Frequency (Hz)'
@@ -251,8 +263,8 @@ class PDA(object):
         AUTOSCALE_AXIS = 'x'
         AUTOSCALE_TIGHT = True
 
-        def __init__(self, plt, rate=44100, nttf=1024, noverlap=900, cmap='gray_r'):
-            self.__plt = plt.add_subplot(312)
+        def __init__(self, plt, pos, rate=44100, nttf=1024, noverlap=900, cmap='gray_r'):
+            self.__plt = plt.add_subplot(pos)
             self.__plt.set_xlabel(self.XLABEL_STR, fontsize=self.LABEL_FONTSIZE)
             self.__plt.set_ylabel(self.YLABEL_STR, fontsize=self.LABEL_FONTSIZE)
             self.__rate = rate
@@ -265,10 +277,13 @@ class PDA(object):
             self.__plt.specgram(self.__pitchTracker.data, NFFT=self.__nttf, Fs=self.__rate, noverlap=self.__noverlap, cmap=self.__cmap)
             self.__plt.autoscale(enable=self.AUTOSCALE_ENABLE, axis=self.AUTOSCALE_AXIS, tight=self.AUTOSCALE_TIGHT)
 
+
+    ### PDA.PitchPlot ###
+
     class PitchPlot(object):
-        XLABEL_STR = 'Samples'
-        YLABEL_STR = 'Pitch (Hz)'
-        LABEL_FONTSIZE = 12
+        XLABEL = 'Samples'
+        YLABEL = 'Pitch (Hz)'
+        FONTSIZE = 12
         PITCH_LABEL = 'pitch interpolation'
         PITCH_COLOR = 'green'
         STEP_LABEL = 'step interpolation'
@@ -276,30 +291,37 @@ class PDA(object):
         SPLINE_LABEL = 'spline interpolation'
         SPLINE_COLOR = 'red'
         LEGEND_LOC = 'upper right'
-        AUTOSCALE_ENABLE = True
-        AUTOSCALE_AXIS = 'x'
-        AUTOSCALE_TIGHT = True
+        ENABLE = True
+        AXIS = 'x'
+        TIGHT = True
 
-        def __init__(self, plt, rate=44100):
-            self.__plt = plt.add_subplot(313)
-            self.__plt.set_xlabel(self.XLABEL_STR, fontsize=self.LABEL_FONTSIZE)
-            self.__plt.set_ylabel(self.YLABEL_STR, fontsize=self.LABEL_FONTSIZE)
-            self.__rate = rate
+        def __init__(self, plt, pos):
+            self.__plt = plt.add_subplot(pos)
+            self.__plt.set_xlabel(xlabel=self.XLABEL, fontsize=self.FONTSIZE)
+            self.__plt.set_ylabel(ylabel=self.YLABEL, fontsize=self.FONTSIZE)
             self.__pitchTracker=PDA.PitchTracker()
 
         def update(self):
             self.__plt.clear()
-            self.__plt.plot(self.__pitchTracker.pitch, label=self.PITCH_LABEL, color=self.PITCH_COLOR)
-            self.__plt.plot(self.__pitchTracker.step, label=self.STEP_LABEL, color=self.STEP_COLOR)
-            self.__plt.plot(self.__pitchTracker.spline, label=self.SPLINE_LABEL, color=self.SPLINE_COLOR)
+            self.__plot()
             self.__plt.legend(loc=self.LEGEND_LOC)
             self.__plt.grid
             self.__plt.axes.set_ylim([0,1000])
-            self.__plt.autoscale(enable=self.AUTOSCALE_ENABLE, axis=self.AUTOSCALE_AXIS, tight=self.AUTOSCALE_TIGHT)
+            self.__plt.autoscale(enable=self.ENABLE, axis=self.AXIS, tight=self.TIGHT)
+
+        def __plot(self):
+            self.__plt.plot(self.__pitchTracker.pitch, label=self.PITCH_LABEL, color=self.PITCH_COLOR)
+            self.__plt.plot(self.__pitchTracker.step, label=self.STEP_LABEL, color=self.STEP_COLOR)
+            self.__plt.plot(self.__pitchTracker.spline, label=self.SPLINE_LABEL, color=self.SPLINE_COLOR)
+
+    ### PDA.PdaPlots ###
 
     class PdaPlots(object, metaclass=Singleton):
         TITLE_STR = 'Signal'
         TITLE_FONTSIZE = 14
+        NUM_PLOTS = 3
+        HORIZ = True
+        PLOT_NUM = 0
 
         def __init__(self, win):
             self.__frame=tk.Frame(win)
@@ -307,9 +329,9 @@ class PDA(object):
             self.__plt=Figure()
             self.__plt.suptitle(self.TITLE_STR, fontsize=self.TITLE_FONTSIZE)
             self.__subPlots = list()
-            self.__subPlots.append(PDA.MagnitudePlot(self.__plt))
-            self.__subPlots.append(PDA.FrequencyPlot(self.__plt))
-            self.__subPlots.append(PDA.PitchPlot(self.__plt))
+            self.__subPlots.append(PDA.MagnitudePlot(self.__plt,self.__pos))
+            self.__subPlots.append(PDA.FrequencyPlot(self.__plt,self.__pos))
+            self.__subPlots.append(PDA.PitchPlot(self.__plt,self.__pos))
             self.__canvas = FigureCanvasTkAgg(self.__plt, master=self.__frame)
 
         def update(self):
@@ -318,15 +340,37 @@ class PDA(object):
             self.__canvas.draw()
             self.__canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=1)
 
-    class CpuPlots(PdaPlots):
-        def __init__(self, frame):
-            super(PDA.CpuPlots,self).__init__(frame)
+        @property
+        def __pos(self):
+            self.PLOT_NUM = self.PLOT_NUM + 1
+            if self.HORIZ:
+                pos = '{}{}{}'.format(self.NUM_PLOTS,1,self.PLOT_NUM)
+            else:
+                pos = '{}{}{}'.format(self.NUM_PLOTS,self.PLOT_NUM,1)
+            return int(pos)
 
-    class GpuPlots(PdaPlots):
-        def __init__(self, frame):
-            super(PDA.GpuPlots,self).__init__(frame)
+    ### PDA.ElapsedTime ###
 
-    ### Processing Classes ###
+    class ElapsedTime(object):
+        UNIT='seconds'
+        DEFAULT='TBD'
+
+        def __init__(self, win):
+            self.__frame=tk.Frame(win)
+            self.__lUnit=tk.Label(self.__frame,text=self.UNIT)
+            self.__lUnit.pack(side=tk.RIGHT)
+            self.__time=tk.StringVar()
+            self.__time.set(self.DEFAULT)
+            self.__lValue=tk.Label(self.__frame, textvariable=self.__time)
+            self.__lValue.pack(side=tk.RIGHT)
+            self.__frame.pack(anchor=tk.SE, fill=tk.X, expand=tk.YES)
+
+        def time(self, value):
+            self.__time.set(value)
+
+        time = property(None, time)
+
+    ### PDA.PitchTracker ###
 
     ## Class to handle pitch processing
     #  This is a sigleton so that only one instance keeps processed data.
