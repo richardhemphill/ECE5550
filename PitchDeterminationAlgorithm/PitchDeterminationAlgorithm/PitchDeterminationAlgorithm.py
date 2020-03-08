@@ -78,23 +78,25 @@ class PDA(object):
         ## Constructor
         def __init__(self):
             self.__window=tk.Tk()
-            self.__configureWindow()
-            self.__commandForm=PDA.CommandForm(self.__window)
-            self.__pdaPlots=PDA.PdaPlots(self.__window)
-            self.__elapsedTime=PDA.ElapsedTime(self.__window)
+            self.__configure()
+            self.__command=PDA.CommandForm(self.__window)
+            self.__plots=PDA.PdaPlots(self.__window)
+            self.__elapsed=PDA.ElapsedTime(self.__window)
+            self.__command.plots(self.__plots)
+
 
         ## Activates the GUI
         def run(self):
             self.__window.mainloop()
 
         ## Initializes the look of the GUI
-        def __configureWindow(self):
-            self.__window.geometry(self.__windowSize())
+        def __configure(self):
+            self.__window.geometry(self.__size())
             self.__window.resizable(width=True, height=True)
             self.__window.title(self.TITLE)
 
         ## Return geometry per the size the GUI window
-        def __windowSize(self):
+        def __size(self):
             # get screen size
             screenWidth=self.__window.winfo_screenwidth()
             screenHeight=self.__window.winfo_screenheight()
@@ -120,6 +122,8 @@ class PDA(object):
             self.__fileBrowser = PDA.FileBrowser(self.__frame)
             self.__frame.pack(anchor=tk.N, fill=tk.X, expand=tk.YES)
 
+        def plots(self,instance):
+            self.__fileBrowser.plots(instance)
 
     ### PDA.CommandSwitch ###
 
@@ -196,7 +200,7 @@ class PDA(object):
             self.__frame=tk.Frame(form)
             self.__sourceSwitch=PDA.SourceSwitch()
             self.__pitchTracker=PDA.PitchTracker()
-            self.__pdaPlots=PDA.PdaPlots.instance
+            self.__plots=None
             self.__file=None
             self.__entryFile=tk.StringVar()
             self.__entry=tk.Entry(self.__frame, textvariable=self.__entryFile, justify=tk.LEFT)
@@ -205,6 +209,9 @@ class PDA(object):
             self.__button=tk.Button(self.__frame, text=self.BUTTON_TEXT, command=lambda:self.__loadFile())
             self.__button.pack(side=tk.LEFT)
             self.__frame.pack(side=tk.LEFT, padx=10, fill=tk.X, expand=tk.YES)
+
+        def plots(self,instance):
+            self.__plots=instance
 
         ## Open dialog window for finding/select file.
         def __loadFile(self):
@@ -222,15 +229,13 @@ class PDA(object):
             self.__file=value
             self.__pitchTracker.file = self.__file
             self.__sourceSwitch.mode = PDA.InputSources.FILE
-            self.__updatePdaPlots()
+            self.__updatePlots()
 
-        def __updatePdaPlots(self):
-            if self.__pdaPlots is None:
-                self.__pdaPlots=PDA.PdaPlots.instance
-                if self.__pdaPlots is not None:
-                    self.__pdaPlots.update()
+        def __updatePlots(self):
+            if self.__plots is None:
+                tk.messagebox.showerror('Error','No Form for Plots was loaded')
             else:
-                self.__pdaPlots.update()
+                self.__plots.update()
 
 
     ### PDA.MagnitudePlot ###
