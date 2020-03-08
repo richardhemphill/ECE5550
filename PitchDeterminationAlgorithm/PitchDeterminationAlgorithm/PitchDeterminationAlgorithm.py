@@ -142,11 +142,6 @@ class PDA(object):
 
         plots=property(None,plots)
 
-        def elapsedTimeWidget(self,widget):
-            self.__fileBrowser.elapsedTimeWidget=widget
-
-        elapsedTimeWidget=property(None,elapsedTimeWidget)
-
     ### PDA.CommandSwitch ###
 
     ## Genralized class for toggle switched in the GUI.
@@ -216,9 +211,11 @@ class PDA(object):
             super().__init__(form=form, 
                              modes=self.__modes, 
                              color=self.COLOR)
-            self.__setCommand()
+            self.__setCommands()
 
-        def __setCommand(self):
+
+
+        def __setCommands(self):
             self.buttons[PDA.InputSources.FILE.name].config(command=self.__processFile)
             self.buttons[PDA.InputSources.MIC.name].config(command=self.__processMic)
 
@@ -275,11 +272,6 @@ class PDA(object):
             self.__plots=widget
 
         plotsWidget=property(None,plotsWidget)
-
-        def elapsedTimeWidget(self,widget):
-            self.__elapsedTimeWidget=widget
-
-        elapsedTimeWidget=property(None,elapsedTimeWidget)
 
         ## Open dialog window for finding/select file.
         def __loadFile(self):
