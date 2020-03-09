@@ -422,7 +422,7 @@ class PDA(object):
         FORMAT=pyaudio.paInt16
         RATE = 4800                     # record at samples/second
         CHUNK = 1600                    # number of samples to process
-        PERIOD=CHUNK/RATE               # period of chunks
+        PERIOD=round(1000*(CHUNK/RATE))   # period of chunks
         CHANNELS=1
 
         def __init__(self, win):
@@ -437,32 +437,42 @@ class PDA(object):
             self.__subPlots.append(PDA.MagnitudePlot(self.__plt,self.__pos))
             self.__subPlots.append(PDA.FrequencyPlot(self.__plt,self.__pos))
             self.__subPlots.append(PDA.PitchPlot(self.__plt,self.__pos))
-            self.__canvas = FigureCanvasTkAgg(self.__plt, 
-                                              master=self.__frame)
+            self.__canvas=None
+            self.__canvasWidget=None
             self.__pitchTracker=PDA.PitchTracker()
             self.__file=None
+            self.__audio=pyaudio.PyAudio()
+            self.__stream=None
 
         def update(self):
             self.__update()
 
         def processFile(self):
-            if self.__file is not None:
+            if self.__file is None:
+                self.__clearCanvas()
+            else:
+                self.__setCanvas()
                 self.__pitchTracker.file = self.__file
                 self.__update()
 
         def processMic(self):
-            audio=pyaudio.PyAudio()
-            stream=audio.open(format=self.FORMAT,
+            self.__setCanvas()
+            self.__stream=self.__audio.open(format=self.FORMAT,
                               channels=self.CHANNELS,
                               rate=self.RATE,
                               input=True,
                               frames_per_buffer=self.CHUNK)
-            while self.__source.mode == PDA.InputSources.MIC.value:
-                data=stream.read(self.CHUNK)
-                if len(data) >= self.CHUNK:
-                    self.__pitchTracker.data=data
-                    self.__update(self.RATE)
-                time.sleep(self.PERIOD)
+            self.__processMic()
+
+        def __processMic(self):
+            data=self.__stream.read(self.CHUNK)
+            if len(data) >= self.CHUNK:
+                self.__pitchTracker.data=data
+                self.__update(self.RATE)
+            if self.__source.mode == PDA.InputSources.MIC.value:
+                self.__frame.master.after(self.PERIOD, self.__processMic)
+            else:
+                self.__stream.close()
 
         def file(self, file):
             if os.path.isfile(file):
@@ -489,16 +499,25 @@ class PDA(object):
                 pos = '{}{}{}'.format(self.PLOTS,self.PLOT_NUM,1)
             return int(pos)
 
+        def __setCanvas(self):
+            self.__clearCanvas()
+            self.__canvas = FigureCanvasTkAgg(self.__plt, 
+                                              master=self.__frame)
+            self.__canvasWidget=self.__canvas.get_tk_widget()
+            self.__canvasWidget.pack(side=tk.TOP)
+            self.__canvasWidget.pack(fill=tk.BOTH)
+            self.__canvasWidget.pack(expand=1)
+
+        def __clearCanvas(self):
+            if self.__canvasWidget is not None:
+                self.__canvasWidget.destroy()
+
         def __update(self, rate=RATE):
             self.__pitchTracker.track(rate)
             self.__updateElapsedTime(self.__pitchTracker.elapsedTime)
             for plt in self.__subPlots:
                 plt.update()
             self.__canvas.draw()
-            pass
-            self.__canvas.get_tk_widget().pack(side=tk.TOP, 
-                                               fill=tk.BOTH, 
-                                               expand=1)
 
         def __updateElapsedTime(self,elapsedTime):
             if self.__elapsedTimeWidget is not None:
