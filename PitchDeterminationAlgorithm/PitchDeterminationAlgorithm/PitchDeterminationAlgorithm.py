@@ -11,24 +11,18 @@
 #   user to demonstrate GPU vs CPU performance.
 #==============================================================================
 
-import time
 from time import process_time
-#import importlib
 import tkinter as tk
-#from tkinter import messagebox
 from tkinter.filedialog import askopenfilename
 import amfm_decompy.pYAAPT as pYAAPT
 import amfm_decompy.basic_tools as basic
 import amfm_decompy_cuda.pYAAPT as pYAAPT_cuda
 import amfm_decompy_cuda.basic_tools as basic_cuda
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-#from matplotlib.backend_bases import key_press_handler
 from matplotlib.figure import Figure
-#import matplotlib.pyplot as pplt 
 import numpy as np
 import cupy as cp
 import wave
-#import sys
 import os
 import pyaudio
 from enum import Enum
@@ -284,17 +278,7 @@ class PDA(object):
             self.__file=value
             self.__entryFile.set(self.__file)
             self.__plots.file=self.__file
-            pass
-            self.__file=value
-            self.__sourceSwitch.mode = PDA.InputSources.FILE.value
-            self.__pitchTracker.file = self.__file
-            self.__pitchTracker.track()
-            self.__updatePlots()
-
-        def __updatePlots(self):
-            pass
-            if self.__plots is not None:
-                self.__plots.update()
+            self.__plots.processFile()
 
 
     ### PDA.MagnitudePlot ###
@@ -316,10 +300,13 @@ class PDA(object):
             self.__pitchTracker=PDA.PitchTracker()
 
         def update(self):
-            self.__plt.clear()
+            self.clear()
             data=self.__pitchTracker.data
             self.__plt.plot(data)
             self.__plt.axis([self.XMIN,len(data),self.YMIN,self.YMAX])
+
+        def clear(self):
+            self.__plt.clear()
 
 
     ### PDA.FrequencyPlot ###
@@ -364,6 +351,9 @@ class PDA(object):
                                  axis=self.AXIS, 
                                  tight=self.TIGHT)
 
+        def clear(self):
+            self.__plt.clear()
+
 
     ### PDA.PitchPlot ###
 
@@ -391,7 +381,7 @@ class PDA(object):
             self.__pitchTracker=PDA.PitchTracker()
 
         def update(self):
-            self.__plt.clear()
+            self.clear()
             self.__plot()
             self.__plt.legend(loc=self.LEGEND)
             self.__plt.grid
@@ -399,6 +389,9 @@ class PDA(object):
             self.__plt.autoscale(enable=self.ENABLE, 
                                  axis=self.AXIS, 
                                  tight=self.TIGHT)
+
+        def clear(self):
+            self.__plt.clear()
 
         def __plot(self):
             self.__plt.plot(self.__pitchTracker.pitch, 
@@ -424,6 +417,7 @@ class PDA(object):
         CHUNK = 1600                    # number of samples to process
         PERIOD=round(1000*(CHUNK/RATE))   # period of chunks
         CHANNELS=1
+        CLEAR_TIME='TBD'
 
         def __init__(self, win):
             self.__frame=tk.Frame(win)
@@ -437,26 +431,28 @@ class PDA(object):
             self.__subPlots.append(PDA.MagnitudePlot(self.__plt,self.__pos))
             self.__subPlots.append(PDA.FrequencyPlot(self.__plt,self.__pos))
             self.__subPlots.append(PDA.PitchPlot(self.__plt,self.__pos))
-            self.__canvas=None
-            self.__canvasWidget=None
+            self.__canvas = FigureCanvasTkAgg(self.__plt, 
+                                              master=self.__frame)
+            self.__canvasWidget=self.__canvas.get_tk_widget()
+            self.__canvasWidget.pack(side=tk.TOP)
+            self.__canvasWidget.pack(fill=tk.BOTH)
+            self.__canvasWidget.pack(expand=1)
             self.__pitchTracker=PDA.PitchTracker()
             self.__file=None
             self.__audio=pyaudio.PyAudio()
             self.__stream=None
 
         def update(self):
+            self.__clear()
             self.__update()
 
         def processFile(self):
-            if self.__file is None:
-                self.__clearCanvas()
-            else:
-                self.__setCanvas()
+            self.__clear()
+            if self.__file is not None:
                 self.__pitchTracker.file = self.__file
                 self.__update()
 
         def processMic(self):
-            self.__setCanvas()
             self.__stream=self.__audio.open(format=self.FORMAT,
                               channels=self.CHANNELS,
                               rate=self.RATE,
@@ -465,11 +461,11 @@ class PDA(object):
             self.__processMic()
 
         def __processMic(self):
-            data=self.__stream.read(self.CHUNK)
-            if len(data) >= self.CHUNK:
-                self.__pitchTracker.data=data
-                self.__update(self.RATE)
             if self.__source.mode == PDA.InputSources.MIC.value:
+                data=self.__stream.read(self.CHUNK)
+                if len(data) >= self.CHUNK:
+                    self.__pitchTracker.data=data
+                    self.__update(self.RATE)
                 self.__frame.master.after(self.PERIOD, self.__processMic)
             else:
                 self.__stream.close()
@@ -499,24 +495,17 @@ class PDA(object):
                 pos = '{}{}{}'.format(self.PLOTS,self.PLOT_NUM,1)
             return int(pos)
 
-        def __setCanvas(self):
-            self.__clearCanvas()
-            self.__canvas = FigureCanvasTkAgg(self.__plt, 
-                                              master=self.__frame)
-            self.__canvasWidget=self.__canvas.get_tk_widget()
-            self.__canvasWidget.pack(side=tk.TOP)
-            self.__canvasWidget.pack(fill=tk.BOTH)
-            self.__canvasWidget.pack(expand=1)
-
-        def __clearCanvas(self):
-            if self.__canvasWidget is not None:
-                self.__canvasWidget.destroy()
-
         def __update(self, rate=RATE):
             self.__pitchTracker.track(rate)
             self.__updateElapsedTime(self.__pitchTracker.elapsedTime)
             for plt in self.__subPlots:
                 plt.update()
+            self.__canvas.draw()
+
+        def __clear(self, ):
+            self.__updateElapsedTime(self.CLEAR_TIME)
+            for plt in self.__subPlots:
+                plt.clear()
             self.__canvas.draw()
 
         def __updateElapsedTime(self,elapsedTime):
@@ -543,7 +532,7 @@ class PDA(object):
                               fill=tk.X, 
                               expand=tk.YES)
 
-        def time(self, value):
+        def time(self, value=DEFAULT):
             self.__time.set(value)
 
         time = property(None, time)
